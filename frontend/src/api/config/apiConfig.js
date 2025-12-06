@@ -3,6 +3,12 @@
  * All API-related configuration is managed here
  */
 
+// Production API URL - default for all production builds
+const PRODUCTION_API_URL = 'https://vintagebeauty-1.onrender.com/api';
+
+// Development API URL - only for localhost
+const DEVELOPMENT_API_URL = 'http://localhost:5001/api';
+
 // Get API URL from environment or use default
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
@@ -16,38 +22,38 @@ const getApiUrl = () => {
   
   // Priority 2: Runtime check - Are we on localhost?
   // This is the most reliable way to detect dev vs prod at runtime
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && window.location) {
     const hostname = window.location.hostname;
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
     
-    // If NOT on localhost, use production URL
-    if (!isLocalhost) {
-      const fallbackUrl = 'https://vintagebeauty-1.onrender.com/api';
-      console.log('🌐 Using production API URL:', fallbackUrl);
-      return fallbackUrl;
+    // If on localhost, use development URL
+    if (isLocalhost) {
+      return DEVELOPMENT_API_URL;
     }
     
-    // If on localhost, use development URL
-    console.log('🏠 Using development API URL: http://localhost:5001/api');
-    return 'http://localhost:5001/api';
+    // If NOT on localhost (production), use production URL
+    return PRODUCTION_API_URL;
   }
   
   // Priority 3: Build-time check (fallback if window not available)
   const isDevMode = import.meta.env.DEV || import.meta.env.MODE === 'development';
   
   if (isDevMode) {
-    return 'http://localhost:5001/api';
+    return DEVELOPMENT_API_URL;
   }
   
   // Priority 4: Default to production (safest for production builds)
-  return 'https://vintagebeauty-1.onrender.com/api';
+  // This ensures production builds always use production URL
+  return PRODUCTION_API_URL;
 };
 
+// Get baseURL value - default to production URL
+// Runtime check will override if on localhost
+const baseURLValue = getApiUrl();
+
 export const API_CONFIG = {
-  // Base URL for all API requests - use getter to ensure runtime check
-  get baseURL() {
-    return getApiUrl();
-  },
+  // Base URL for all API requests
+  baseURL: baseURLValue,
   
   // Request timeout in milliseconds (increased for slow connections)
   timeout: 60000, // 60 seconds
