@@ -1,0 +1,279 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import cartService from '../services/cartService';
+import { useAuthStore } from './authStore';
+
+export const useCartStore = create(
+  persist(
+    (set, get) => ({
+      items: [],
+      isLoading: false,
+      isSyncing: false,
+      
+      // Sync cart from backend
+      syncCart: async () => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          // User not logged in, use local storage only
+          return;
+        }
+        
+        set({ isSyncing: true });
+        try {
+          const response = await cartService.getCart();
+          const currentItems = get().items; // Preserve current items
+          
+          if (response.success) {
+            // Get items from response (try multiple paths)
+            const backendItems = response.items || response.data?.items || [];
+            
+            if (backendItems && backendItems.length > 0) {
+              // Transform backend items to match frontend format
+              const transformedItems = backendItems.map(item => {
+                // Handle both populated product object and product ID
+                const product = item.product?._id ? item.product : (item.product || {});
+                const productId = product._id || product.id || item.product;
+                
+                return {
+                  _id: item._id,
+                  product: productId,
+                  name: item.name || product.name || 'Product',
+                  image: item.image || product.images?.[0] || product.image || null,
+                  quantity: item.quantity || 1,
+                  size: item.size || null,
+                  price: item.selectedPrice || item.price || product.price || 699,
+                  selectedPrice: item.selectedPrice || item.price || product.price || 699
+                };
+              });
+              set({ items: transformedItems });
+            } else {
+              // Backend cart is empty, but keep local items if they exist
+              // Only clear if we're sure backend is the source of truth
+              if (currentItems.length === 0) {
+                set({ items: [] });
+              }
+              // Otherwise keep local items
+            }
+          }
+        } catch (error) {
+          // Silently handle 401 - user not authenticated, use local storage
+          if (error.response?.status !== 401 && error.status !== 401) {
+          console.error('Failed to sync cart:', error);
+          }
+          // Keep local storage items on error - don't clear them
+          // This ensures items added locally persist even if sync fails
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+      
+      addItem: async (product, quantity = 1, size = null) => {
+        const token = localStorage.getItem('token');
+        const productId = product._id || product.id || product;
+        const selectedSize = size || (product.sizes?.[2]?.size || product.sizes?.[0]?.size || '100ml');
+        const selectedPrice = size 
+          ? product.sizes?.find(s => s.size === size)?.price 
+          : (product.sizes?.[2]?.price || product.sizes?.[0]?.price || product.price || 699);
+        
+        // Update local state immediately for better UX
+        set((state) => {
+          const productIdStr = String(productId);
+          const existingItem = state.items.find(item => {
+            // Extract product ID - handle both string and object
+            const itemProductId = typeof item.product === 'object' 
+              ? String(item.product._id || item.product.id)
+              : String(item.product || '');
+            return String(itemProductId) === productIdStr && item.size === selectedSize;
+          });
+          
+          if (existingItem) {
+            return {
+              items: state.items.map(item => {
+                // Extract product ID - handle both string and object
+                const itemProductId = typeof item.product === 'object' 
+                  ? String(item.product._id || item.product.id)
+                  : String(item.product || '');
+                if (String(itemProductId) === productIdStr && item.size === selectedSize) {
+                  return { ...item, quantity: item.quantity + quantity };
+                }
+                return item;
+              })
+            };
+          }
+          
+          return {
+            items: [...state.items, {
+              product: productId,
+              name: product.name,
+              image: product.images?.[0] || product.image,
+              quantity,
+              size: selectedSize,
+              price: selectedPrice,
+              selectedPrice
+            }]
+          };
+        });
+        
+        // Sync with backend if logged in
+        if (token) {
+          try {
+            await cartService.addToCart(productId, quantity, selectedSize);
+            // Refresh from backend to get the updated cart with proper structure
+            await get().syncCart();
+          } catch (error) {
+            // Handle 401 - user not authenticated or token expired
+            if (error.isUnauthorized || error.response?.status === 401 || error.status === 401) {
+              // Clear invalid token and use local storage only
+              const { logout } = useAuthStore.getState();
+              logout();
+              // Show message to user (will be handled by component)
+              throw { ...error, shouldShowLoginMessage: true };
+            }
+            console.error('Failed to add to cart on backend:', error);
+            // Keep local changes on error - don't clear them
+          }
+        }
+      },
+      
+      removeItem: async (productId, size = null) => {
+        const token = localStorage.getItem('token');
+        const itemId = String(typeof productId === 'object' ? (productId._id || productId.id) : productId);
+        
+        // Update local state immediately
+        set((state) => ({
+          items: state.items.filter(item => {
+            // Extract product ID - handle both string and object
+            const itemProductId = typeof item.product === 'object' 
+              ? String(item.product._id || item.product.id)
+              : String(item.product || item.id || '');
+            const itemSize = item.size || null;
+            // Compare as strings and match size
+            return !(String(itemProductId) === String(itemId) && (size === null || itemSize === size));
+          })
+        }));
+        
+        // Sync with backend if logged in
+        if (token) {
+          try {
+            // Find the cart item ID from backend
+            const cart = await cartService.getCart();
+            const backendItem = cart.items?.find(item => {
+              const itemProductId = item.product?._id || item.product?.id || item.product;
+              return itemProductId === itemId && (size === null || item.size === size);
+            });
+            
+            if (backendItem?._id) {
+              await cartService.removeFromCart(backendItem._id);
+            }
+            await get().syncCart(); // Refresh from backend
+          } catch (error) {
+            // Silently handle 401 - user not authenticated
+            if (error.response?.status !== 401 && error.status !== 401) {
+            console.error('Failed to remove from cart on backend:', error);
+            }
+            // Keep local changes on error
+          }
+        }
+      },
+      
+      updateQuantity: async (productId, quantity, size = null) => {
+        if (quantity <= 0) {
+          get().removeItem(productId, size);
+          return;
+        }
+        
+        const token = localStorage.getItem('token');
+        const itemId = String(typeof productId === 'object' ? (productId._id || productId.id) : productId);
+        
+        // Update local state immediately
+        set((state) => ({
+          items: state.items.map(item => {
+            // Extract product ID - handle both string and object
+            const itemProductId = typeof item.product === 'object' 
+              ? String(item.product._id || item.product.id)
+              : String(item.product || item.id || '');
+            const itemSize = item.size || null;
+            // Compare as strings and match size
+            if (String(itemProductId) === String(itemId) && (size === null || itemSize === size)) {
+              return { ...item, quantity };
+            }
+            return item;
+          })
+        }));
+        
+        // Sync with backend if logged in
+        if (token) {
+          try {
+            // Find the cart item ID from backend
+            const cart = await cartService.getCart();
+            const backendItem = cart.items?.find(item => {
+              const itemProductId = item.product?._id || item.product?.id || item.product;
+              return itemProductId === itemId && (size === null || item.size === size);
+            });
+            
+            if (backendItem?._id) {
+              await cartService.updateCartItem(backendItem._id, quantity, size, backendItem.selectedPrice);
+            }
+            await get().syncCart(); // Refresh from backend
+          } catch (error) {
+            // Silently handle 401 - user not authenticated
+            if (error.response?.status !== 401 && error.status !== 401) {
+            console.error('Failed to update cart on backend:', error);
+            }
+            // Keep local changes on error
+          }
+        }
+      },
+      
+      clearCart: async () => {
+        const token = localStorage.getItem('token');
+        
+        // Update local state immediately
+        set({ items: [] });
+        
+        // Sync with backend if logged in
+        if (token) {
+          try {
+            await cartService.clearCart();
+          } catch (error) {
+            // Silently handle 401 - user not authenticated
+            if (error.response?.status !== 401 && error.status !== 401) {
+            console.error('Failed to clear cart on backend:', error);
+            }
+            // Keep local changes on error
+          }
+        }
+      },
+      
+      getItemCount: () => {
+        return get().items.reduce((total, item) => total + (item.quantity || 0), 0);
+      },
+      
+      getTotalPrice: () => {
+        return get().items.reduce((total, item) => {
+          // Ensure price is a number
+          const price = Number(item.selectedPrice) || Number(item.price) || Number(item.product?.price) || 699;
+          // Ensure quantity is a number
+          const quantity = Number(item.quantity) || 0;
+          // Calculate item total
+          const itemTotal = price * quantity;
+          // Return sum, ensuring it's a valid number
+          return total + (isNaN(itemTotal) ? 0 : itemTotal);
+        }, 0);
+      },
+      
+      isInCart: (productId, size = null) => {
+        const itemId = typeof productId === 'object' ? (productId._id || productId.id) : productId;
+        return get().items.some(item => {
+          const itemProductId = item.product?._id || item.product?.id || item.product;
+          return itemProductId === itemId && (size === null || item.size === size);
+        });
+      }
+    }),
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
+
