@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 const defaultOrigins = [
   'http://localhost:5173', 
   'http://localhost:5174',
-  'https://apm-beauty-and-perfume-53ms.vercel.app'
+  'https://vintagebeauty-luqb.vercel.app/products'
 ];
 
 // Get origins from environment variable or use defaults
