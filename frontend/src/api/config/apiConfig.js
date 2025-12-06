@@ -26,10 +26,10 @@ const getApiUrl = () => {
   if (!import.meta.env.DEV) {
     console.error('❌ CRITICAL: VITE_API_URL is not set in Vercel environment variables!');
     console.error('❌ This will cause all API calls to fail with timeout errors.');
-    console.error('❌ Please set VITE_API_URL in Vercel: https://vintagebeauty.onrender.com/api');
+    console.error('❌ Please set VITE_API_URL in Vercel: https://vintagebeauty-1.onrender.com/api');
     // Use the Render URL as fallback in production if env var not set
     // This allows the app to work even if env var is missing (though it should be set)
-    return 'https://vintagebeauty.onrender.com/api';
+    return 'https://vintagebeauty-1.onrender.com/api';
   }
   
   return 'http://localhost:5001/api';
