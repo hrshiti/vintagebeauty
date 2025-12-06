@@ -7,61 +7,47 @@
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   
-  // Runtime check: Are we on localhost? (most reliable way to detect dev vs prod)
-  const isLocalhost = typeof window !== 'undefined' && 
-                      (window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1');
-  
-  // Build-time check: Are we in development mode?
-  const isDevMode = import.meta.env.DEV || import.meta.env.MODE === 'development';
-  
-  // Determine if we're in development (ONLY if explicitly on localhost OR in dev mode)
-  const isDev = isLocalhost || isDevMode;
-  
-  // Log the API URL being used (for debugging)
-  if (isDev) {
-    console.log('🔧 API Configuration (DEV):', {
-      envUrl,
-      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
-      mode: import.meta.env.MODE,
-      isLocalhost,
-      isDevMode,
-      finalUrl: envUrl || 'https://vintagebeauty-1.onrender.com/api'
-    });
-  }
-  
   // Priority 1: If environment variable is set, use it (highest priority)
   if (envUrl && envUrl.trim()) {
-    // Ensure URL ends with /api if not already
     const cleanUrl = envUrl.trim().replace(/\/$/, ''); // Remove trailing slash
     const finalUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
-    
-    if (!isDev) {
-      console.log('✅ Using API URL from environment:', finalUrl);
-    }
     return finalUrl;
   }
   
-  // Priority 2: Default to PRODUCTION URL unless explicitly on localhost
-  // This ensures production builds always use production URL
-  if (!isLocalhost) {
-    const fallbackUrl = 'https://vintagebeauty-1.onrender.com/api';
-    console.log('🌐 Using production API URL:', fallbackUrl);
-    if (!envUrl) {
-      console.warn('⚠️ VITE_API_URL not set. Using production fallback.');
-      console.warn('⚠️ Please set VITE_API_URL in Vercel environment variables for better control.');
+  // Priority 2: Runtime check - Are we on localhost?
+  // This is the most reliable way to detect dev vs prod at runtime
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    
+    // If NOT on localhost, use production URL
+    if (!isLocalhost) {
+      const fallbackUrl = 'https://vintagebeauty-1.onrender.com/api';
+      console.log('🌐 Using production API URL:', fallbackUrl);
+      return fallbackUrl;
     }
-    return fallbackUrl;
+    
+    // If on localhost, use development URL
+    console.log('🏠 Using development API URL: http://localhost:5001/api');
+    return 'http://localhost:5001/api';
   }
   
-  // Priority 3: Development fallback (ONLY if on localhost)
-  console.log('🏠 Using development API URL: http://localhost:5001/api');
-  return 'http://localhost:5001/api';
+  // Priority 3: Build-time check (fallback if window not available)
+  const isDevMode = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  
+  if (isDevMode) {
+    return 'http://localhost:5001/api';
+  }
+  
+  // Priority 4: Default to production (safest for production builds)
+  return 'https://vintagebeauty-1.onrender.com/api';
 };
 
 export const API_CONFIG = {
-  // Base URL for all API requests
-  baseURL: getApiUrl(),
+  // Base URL for all API requests - use getter to ensure runtime check
+  get baseURL() {
+    return getApiUrl();
+  },
   
   // Request timeout in milliseconds (increased for slow connections)
   timeout: 60000, // 60 seconds
