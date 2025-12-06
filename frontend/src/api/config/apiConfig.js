@@ -15,8 +15,8 @@ const getApiUrl = () => {
   // Build-time check: Are we in development mode?
   const isDevMode = import.meta.env.DEV || import.meta.env.MODE === 'development';
   
-  // Determine if we're in development (either build-time or runtime check)
-  const isDev = isDevMode || isLocalhost;
+  // Determine if we're in development (ONLY if explicitly on localhost OR in dev mode)
+  const isDev = isLocalhost || isDevMode;
   
   // Log the API URL being used (for debugging)
   if (isDev) {
@@ -24,6 +24,8 @@ const getApiUrl = () => {
       envUrl,
       hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
       mode: import.meta.env.MODE,
+      isLocalhost,
+      isDevMode,
       finalUrl: envUrl || 'http://localhost:5001/api'
     });
   }
@@ -40,15 +42,20 @@ const getApiUrl = () => {
     return finalUrl;
   }
   
-  // Priority 2: If NOT in development (production), use Render URL as fallback
-  if (!isDev) {
+  // Priority 2: Default to PRODUCTION URL unless explicitly on localhost
+  // This ensures production builds always use production URL
+  if (!isLocalhost) {
     const fallbackUrl = 'https://vintagebeauty-1.onrender.com/api';
-    console.warn('⚠️ VITE_API_URL not set. Using production fallback:', fallbackUrl);
-    console.warn('⚠️ Please set VITE_API_URL in Vercel environment variables for better control.');
+    console.log('🌐 Using production API URL:', fallbackUrl);
+    if (!envUrl) {
+      console.warn('⚠️ VITE_API_URL not set. Using production fallback.');
+      console.warn('⚠️ Please set VITE_API_URL in Vercel environment variables for better control.');
+    }
     return fallbackUrl;
   }
   
-  // Priority 3: Development fallback (only if explicitly in dev)
+  // Priority 3: Development fallback (ONLY if on localhost)
+  console.log('🏠 Using development API URL: http://localhost:5001/api');
   return 'http://localhost:5001/api';
 };
 
