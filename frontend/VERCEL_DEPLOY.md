@@ -1,78 +1,216 @@
-# Vercel Deployment Guide
+# Vercel Deployment Guide - Frontend (Vite + React)
 
-## Configuration File
-The `vercel.json` file is already configured for this React + Vite application.
+## 📋 Prerequisites
 
-## Environment Variables Setup in Vercel
+1. **Backend deployed on Render** (or any hosting service)
+2. **GitHub repository** with your code
+3. **Vercel account** (free tier works fine)
 
-Before deploying, make sure to add these environment variables in your Vercel project settings:
+---
 
-### Required Environment Variables:
+## 🚀 Step-by-Step Deployment
+
+### Step 1: Deploy Backend on Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+   - **Name:** `vintagebeauty-backend` (or your choice)
+   - **Root Directory:** `backend`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+5. Add Environment Variables in Render:
+   ```
+   NODE_ENV=production
+   PORT=10000
+   MONGODB_URI=your_mongodb_connection_string
+   JWT_SECRET=your_jwt_secret
+   CORS_ORIGIN=https://your-vercel-app.vercel.app
+   ```
+6. Click **Create Web Service**
+7. Wait for deployment and copy your Render URL (e.g., `https://vintagebeauty.onrender.com`)
+
+### Step 2: Update Backend CORS Settings
+
+In your Render backend, add your Vercel frontend URL to CORS_ORIGIN:
+```
+CORS_ORIGIN=https://your-vercel-app.vercel.app,https://your-vercel-app.vercel.app/*
+```
+
+### Step 3: Deploy Frontend on Vercel
+
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Click **Add New Project**
+3. Import your GitHub repository
+4. Configure Project:
+   - **Framework Preset:** Vite (auto-detected)
+   - **Root Directory:** `frontend` (click Edit and set to `frontend`)
+   - **Build Command:** `npm run build` (auto-detected)
+   - **Output Directory:** `dist` (auto-detected)
+   - **Install Command:** `npm install` (auto-detected)
+
+### Step 4: Add Environment Variables in Vercel
+
+Go to **Settings** → **Environment Variables** and add:
+
+#### Required Variables:
 
 1. **VITE_API_URL**
-   - Production: Your backend API URL (e.g., `https://your-backend-api.vercel.app/api` or your custom domain)
-   - Development: `http://localhost:5001/api`
+   - **Value:** `https://your-backend.onrender.com/api`
+   - **Example:** `https://vintagebeauty.onrender.com/api`
+   - **Environments:** Production, Preview, Development
+   - ⚠️ **Important:** Make sure URL ends with `/api` or the config will add it automatically
 
-2. **Firebase Configuration** (if using Firebase):
-   - `VITE_FIREBASE_API_KEY`
-   - `VITE_FIREBASE_AUTH_DOMAIN`
-   - `VITE_FIREBASE_PROJECT_ID`
-   - `VITE_FIREBASE_STORAGE_BUCKET`
-   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
-   - `VITE_FIREBASE_APP_ID`
-   - `VITE_FIREBASE_MEASUREMENT_ID`
+#### Optional Variables (if using Firebase):
 
-## How to Add Environment Variables in Vercel:
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
 
-1. Go to your Vercel project dashboard
-2. Navigate to **Settings** → **Environment Variables**
-3. Add each variable with its value
-4. Select the environment (Production, Preview, Development)
-5. Click **Save**
+### Step 5: Deploy
 
-## Deployment Steps:
+1. Click **Deploy**
+2. Wait for build to complete
+3. Your app will be live at `https://your-project.vercel.app`
 
-1. **Connect your repository to Vercel:**
-   - Import your Git repository
-   - Select the `frontend` folder as the root directory (or configure it in Vercel settings)
+---
 
-2. **Configure Build Settings:**
-   - Framework Preset: **Vite**
-   - Build Command: `npm run build` (already in vercel.json)
-   - Output Directory: `dist` (already in vercel.json)
-   - Install Command: `npm install` (already in vercel.json)
+## 📁 Configuration Files
 
-3. **Add Environment Variables** (as listed above)
+### vercel.json
 
-4. **Deploy:**
-   - Click **Deploy**
-   - Vercel will automatically build and deploy your app
+The `vercel.json` file is already configured with:
 
-## What the vercel.json File Does:
+✅ **SPA Routing:** All routes redirect to `/index.html` for React Router  
+✅ **Caching:** Static assets cached for 1 year  
+✅ **Security Headers:** XSS protection, frame options, etc.  
+✅ **Build Settings:** Auto-detected Vite configuration  
 
-1. **SPA Routing:** All routes are rewritten to `/index.html` to support React Router client-side routing
-2. **Caching:** Static assets (JS, CSS, images) are cached for 1 year for better performance
-3. **CORS Headers:** API routes have proper CORS headers configured
-4. **Build Configuration:** Automatically detects Vite framework and uses correct build settings
+**Location:** `frontend/vercel.json`
 
-## Troubleshooting:
+---
 
-### Issue: 404 errors on routes
-- **Solution:** The `rewrites` configuration in `vercel.json` should handle this. Make sure the file is in the `frontend` directory root.
+## 🔧 Environment Variables Reference
 
-### Issue: API calls failing
-- **Solution:** Check that `VITE_API_URL` is set correctly in Vercel environment variables and points to your backend API.
+### Frontend (Vercel) - Required:
 
-### Issue: Build fails
-- **Solution:** Check build logs in Vercel dashboard. Common issues:
-  - Missing environment variables
-  - Node version mismatch (Vercel uses Node 18+ by default)
-  - Build command errors
+```env
+VITE_API_URL=https://your-backend.onrender.com/api
+```
 
-## Notes:
+### Backend (Render) - Required:
 
-- The `vercel.json` file handles all routing automatically
-- No additional server configuration needed
-- All client-side routes will work correctly
-- Static assets are optimized and cached automatically
+```env
+NODE_ENV=production
+PORT=10000
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=your_secret_key
+CORS_ORIGIN=https://your-vercel-app.vercel.app
+```
+
+---
+
+## ✅ Post-Deployment Checklist
+
+- [ ] Backend deployed on Render and accessible
+- [ ] Frontend deployed on Vercel
+- [ ] `VITE_API_URL` set correctly in Vercel
+- [ ] `CORS_ORIGIN` includes Vercel URL in Render
+- [ ] Test API calls from frontend
+- [ ] Test all routes (Home, Products, Cart, etc.)
+- [ ] Test authentication (Login/Signup)
+- [ ] Check browser console for errors
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue: 404 errors on routes (e.g., `/products`, `/cart`)
+
+**Solution:**
+- ✅ Already handled by `vercel.json` rewrites
+- Make sure `vercel.json` is in `frontend` directory root
+- Verify the rewrite rule: `"source": "/(.*)"` → `"destination": "/index.html"`
+
+### Issue: API calls failing / CORS errors
+
+**Solution:**
+1. Check `VITE_API_URL` in Vercel environment variables
+2. Verify backend URL is correct (should end with `/api`)
+3. Check `CORS_ORIGIN` in Render includes your Vercel URL
+4. Test backend directly: `https://your-backend.onrender.com/health`
+5. Check browser console for exact error message
+
+### Issue: Build fails on Vercel
+
+**Common Causes:**
+- ❌ Missing `VITE_API_URL` environment variable
+- ❌ Node version mismatch (Vercel uses Node 18+ by default)
+- ❌ Build errors in code
+
+**Solution:**
+1. Check build logs in Vercel dashboard
+2. Add `.nvmrc` file in `frontend` directory:
+   ```
+   18
+   ```
+3. Verify all dependencies in `package.json`
+
+### Issue: Images not loading
+
+**Solution:**
+- Images should come from Cloudinary (stored in database)
+- Check if `VITE_API_URL` is correct
+- Verify backend is returning image URLs properly
+
+### Issue: Slow API responses
+
+**Solution:**
+- Render free tier spins down after inactivity
+- First request may take 30-60 seconds to wake up
+- Consider upgrading to paid tier for always-on service
+
+---
+
+## 🔒 Security Notes
+
+- ✅ Security headers configured in `vercel.json`
+- ✅ CORS properly configured on backend
+- ✅ Environment variables stored securely
+- ✅ No sensitive data in frontend code
+
+---
+
+## 📝 Additional Notes
+
+1. **Custom Domain:** You can add a custom domain in Vercel settings
+2. **Preview Deployments:** Every push creates a preview URL
+3. **Auto Deploy:** Vercel auto-deploys on git push to main branch
+4. **Build Cache:** Vercel caches `node_modules` for faster builds
+
+---
+
+## 🎯 Quick Reference
+
+| Service | URL Format | Example |
+|---------|-----------|---------|
+| **Frontend (Vercel)** | `https://project-name.vercel.app` | `https://vintagebeauty.vercel.app` |
+| **Backend (Render)** | `https://project-name.onrender.com` | `https://vintagebeauty.onrender.com` |
+| **API Endpoint** | `https://backend-url/api` | `https://vintagebeauty.onrender.com/api` |
+
+---
+
+## 📞 Support
+
+If you encounter issues:
+1. Check Vercel deployment logs
+2. Check Render deployment logs
+3. Check browser console for errors
+4. Verify all environment variables are set correctly
 
