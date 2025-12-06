@@ -7,31 +7,48 @@
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   
+  // Runtime check: Are we on localhost? (most reliable way to detect dev vs prod)
+  const isLocalhost = typeof window !== 'undefined' && 
+                      (window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1');
+  
+  // Build-time check: Are we in development mode?
+  const isDevMode = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  
+  // Determine if we're in development (either build-time or runtime check)
+  const isDev = isDevMode || isLocalhost;
+  
   // Log the API URL being used (for debugging)
-  if (import.meta.env.DEV) {
-    console.log('🔧 API Configuration:', {
+  if (isDev) {
+    console.log('🔧 API Configuration (DEV):', {
       envUrl,
-      isDev: import.meta.env.DEV,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      mode: import.meta.env.MODE,
       finalUrl: envUrl || 'http://localhost:5001/api'
     });
   }
   
-  if (envUrl) {
+  // Priority 1: If environment variable is set, use it (highest priority)
+  if (envUrl && envUrl.trim()) {
     // Ensure URL ends with /api if not already
     const cleanUrl = envUrl.trim().replace(/\/$/, ''); // Remove trailing slash
-    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+    const finalUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+    
+    if (!isDev) {
+      console.log('✅ Using API URL from environment:', finalUrl);
+    }
+    return finalUrl;
   }
   
-  // In production, warn if URL is not set
-  if (!import.meta.env.DEV) {
-    console.error('❌ CRITICAL: VITE_API_URL is not set in Vercel environment variables!');
-    console.error('❌ This will cause all API calls to fail with timeout errors.');
-    console.error('❌ Please set VITE_API_URL in Vercel: https://vintagebeauty-1.onrender.com/api');
-    // Use the Render URL as fallback in production if env var not set
-    // This allows the app to work even if env var is missing (though it should be set)
-    return 'https://vintagebeauty-1.onrender.com/api';
+  // Priority 2: If NOT in development (production), use Render URL as fallback
+  if (!isDev) {
+    const fallbackUrl = 'https://vintagebeauty-1.onrender.com/api';
+    console.warn('⚠️ VITE_API_URL not set. Using production fallback:', fallbackUrl);
+    console.warn('⚠️ Please set VITE_API_URL in Vercel environment variables for better control.');
+    return fallbackUrl;
   }
   
+  // Priority 3: Development fallback (only if explicitly in dev)
   return 'http://localhost:5001/api';
 };
 
