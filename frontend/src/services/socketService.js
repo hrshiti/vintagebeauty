@@ -14,7 +14,7 @@ class SocketService {
 
     // Extract base URL without /api suffix for Socket.IO (Socket.IO connects to server root)
     const baseURL = API_CONFIG.baseURL.replace('/api', '');
-    const backendUrl = baseURL || 'http://localhost:5001';
+    const backendUrl = baseURL || 'https://vintagebeauty-1.onrender.com';
     
     // Don't attempt connection if backend URL is localhost in production
     if (backendUrl.includes('localhost') && !import.meta.env.DEV) {

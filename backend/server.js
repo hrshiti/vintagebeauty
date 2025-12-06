@@ -25,82 +25,33 @@ const httpServer = createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware
-const defaultOrigins = [
-  'http://localhost:5173', 
-  'http://localhost:5174',
-  'https://vintagebeauty-luqb.vercel.app/products'
-];
-
-// Get origins from environment variable or use defaults
-const envOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : [];
-
-// Combine environment origins with defaults, removing duplicates
-const allowedOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
-
-// Helper function to check if origin is allowed
-const isOriginAllowed = (origin) => {
-  if (!origin) return true; // Allow requests with no origin
-  
-  // Check exact matches
-  if (allowedOrigins.includes(origin)) {
-    return true;
-  }
-  
-  // Check if origin is a Vercel deployment (any subdomain of vercel.app)
-  if (origin.includes('.vercel.app') && origin.startsWith('https://')) {
-    return true;
-  }
-  
-  return false;
-};
-
-// CORS configuration with origin validation
+// CORS middleware - Production CORS for Vercel frontend
 app.use(cors({
-  origin: function (origin, callback) {
-    // Log CORS check for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('CORS check:', { origin, allowedOrigins });
-    }
-    
-    if (isOriginAllowed(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS blocked origin: ${origin}`);
-      console.warn(`⚠️ Allowed origins:`, allowedOrigins);
-      // In production, allow the request but log a warning
-      // This helps debug CORS issues without blocking requests
-      if (process.env.NODE_ENV === 'production') {
-        // Still allow Vercel deployments even if not in exact list
-        if (origin && origin.includes('.vercel.app')) {
-          console.warn(`⚠️ Allowing Vercel deployment: ${origin}`);
-          callback(null, true);
-          return;
-        }
-      }
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  origin: [
+    "https://vintagebeauty-luqb.vercel.app",
+    "https://vintagebeauty.vercel.app",
+    // Allow localhost for development
+    ...(process.env.NODE_ENV !== 'production' ? [
+      'http://localhost:5173',
+      'http://localhost:5174'
+    ] : [])
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 // Initialize Socket.IO with same CORS configuration
 const io = new Server(httpServer, {
   cors: {
-    origin: function (origin, callback) {
-      if (isOriginAllowed(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: [
+      "https://vintagebeauty-luqb.vercel.app",
+      "https://vintagebeauty.vercel.app",
+      // Allow localhost for development
+      ...(process.env.NODE_ENV !== 'production' ? [
+        'http://localhost:5173',
+        'http://localhost:5174'
+      ] : [])
+    ],
     credentials: true,
     methods: ['GET', 'POST']
   }

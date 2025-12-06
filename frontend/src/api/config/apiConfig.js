@@ -26,7 +26,7 @@ const getApiUrl = () => {
       mode: import.meta.env.MODE,
       isLocalhost,
       isDevMode,
-      finalUrl: envUrl || 'http://localhost:5001/api'
+      finalUrl: envUrl || 'https://vintagebeauty-1.onrender.com/api'
     });
   }
   
