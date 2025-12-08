@@ -20,7 +20,7 @@ export const formatError = (error) => {
       // In production, check if API URL is configured
       if (!import.meta.env.DEV) {
         const apiUrl = import.meta.env.VITE_API_URL;
-        if (!apiUrl || apiUrl.includes('localhost')) {
+        if (!apiUrl) {
           message += ' (Backend URL not configured. Please set VITE_API_URL in Vercel environment variables)';
         }
       }

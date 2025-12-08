@@ -343,7 +343,7 @@ const Home = () => {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 h-full flex flex-col justify-center gap-6 md:gap-8 px-5 md:px-10 lg:px-14 py-6 md:py-8">
+        <div className="relative z-10 h-full flex flex-col justify-center gap-3 md:gap-4 px-5 md:px-10 lg:px-14 py-6 md:py-8">
           {/* Top Badge */}
           <motion.div
             className="self-start"
@@ -359,7 +359,7 @@ const Home = () => {
           {/* Main Content - Left Side */}
           <div className="flex flex-col justify-center max-w-xl md:max-w-2xl">
             <motion.h2
-              className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-3 md:mb-4 leading-tight"
+              className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-2 md:mb-3 leading-tight"
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -367,7 +367,7 @@ const Home = () => {
               {currentBanner.tagline}
             </motion.h2>
             <motion.p
-              className="text-sm md:text-lg lg:text-xl text-[#D4AF37] font-semibold mb-4 md:mb-6 max-w-md"
+              className="text-sm md:text-lg lg:text-xl text-[#D4AF37] font-semibold mb-3 md:mb-4 max-w-md"
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}

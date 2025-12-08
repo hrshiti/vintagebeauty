@@ -16,13 +16,6 @@ class SocketService {
     const baseURL = API_CONFIG.baseURL.replace('/api', '');
     const backendUrl = baseURL || 'https://vintagebeauty-1.onrender.com';
     
-    // Don't attempt connection if backend URL is localhost in production
-    if (backendUrl.includes('localhost') && !import.meta.env.DEV) {
-      console.warn('⚠️ Socket.IO: Backend URL not configured. Skipping Socket.IO connection.');
-      console.warn('⚠️ Please set VITE_API_URL in Vercel environment variables (e.g., https://vintagebeauty-1.onrender.com/api)');
-      return null;
-    }
-    
     // Log connection attempt only in development
     if (import.meta.env.DEV) {
       console.log('Socket.IO connecting to:', backendUrl);
