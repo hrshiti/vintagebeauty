@@ -127,6 +127,7 @@ function AppRoutes() {
             <Route path="/order-summary" element={<UserProtectedRoute><OrderSummary /></UserProtectedRoute>} />
             <Route path="/payment" element={<UserProtectedRoute><Payment /></UserProtectedRoute>} />
             <Route path="/order-success" element={<UserProtectedRoute><OrderSuccess /></UserProtectedRoute>} />
+            <Route path="/products/order-success" element={<UserProtectedRoute><OrderSuccess /></UserProtectedRoute>} />
             <Route path="/orders" element={<UserProtectedRoute><Orders /></UserProtectedRoute>} />
             <Route path="/addresses" element={<UserProtectedRoute><Addresses /></UserProtectedRoute>} />
             <Route path="/notifications" element={<UserProtectedRoute><Notifications /></UserProtectedRoute>} />

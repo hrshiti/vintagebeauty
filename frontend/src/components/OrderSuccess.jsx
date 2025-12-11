@@ -92,14 +92,14 @@ const OrderSuccess = () => {
     const cashfreePaymentId = urlParams.get('payment_id');
 
     // If this is a Cashfree redirect callback
-    if (gateway === 'cashfree' && cashfreeOrderId && cashfreePaymentId) {
+    if (gateway === 'cashfree' && cashfreeOrderId)  {
       // Prevent duplicate processing
       if (cashfreeProcessedRef.current) {
         console.log('Cashfree callback already processed, skipping...');
         return;
       }
       cashfreeProcessedRef.current = true;
-      handleCashfreeCallback(cashfreeOrderId, cashfreePaymentId);
+      handleCashfreeCallback(cashfreeOrderId, cashfreePaymentId || null);
     }
   }, [location.search]);
 
@@ -322,6 +322,18 @@ const OrderSuccess = () => {
       addOrder(orderToSave);
     }
   }, [orderItems, totalPrice, shipping, discount, finalTotal, paymentMethod, couponCode, deliveryAddress, location.search]);
+  if (isProcessingCashfree) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center pb-20 md:pb-0">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#D4AF37] border-t-transparent mx-auto mb-6"></div>
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Processing Your Payment...</h2>
+          <p className="text-gray-400 text-sm md:text-base">Please wait while we verify your payment</p>
+        </div>
+        <BottomNavbar />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
