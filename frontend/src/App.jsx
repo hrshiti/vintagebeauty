@@ -31,6 +31,9 @@ import MySupport from './components/MySupport'
 import Notifications from './components/Notifications'
 import NotificationListener from './components/NotificationListener'
 import UserProtectedRoute from './components/UserProtectedRoute'
+import Blogs from './components/Blogs'
+import BlogDetail from './components/BlogDetail'
+import TrackOrder from './components/TrackOrder'
 import './App.css'
 
 // Scroll to Top Component - Scrolls to top on route change
@@ -142,6 +145,9 @@ function AppRoutes() {
             <Route path="/about-us" element={<AboutUs />} />
             <Route path="/deals" element={<Deals />} />
             <Route path="/combo-deals/:id" element={<ComboDeals />} />
+            <Route path="/blogs" element={<Blogs />} />
+            <Route path="/blog/:slug" element={<BlogDetail />} />
+            <Route path="/track-order" element={<TrackOrder />} />
           </Routes>
         </AnimatePresence>
       </SmoothScroll>

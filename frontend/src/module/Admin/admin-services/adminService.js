@@ -556,73 +556,42 @@ const adminService = {
     };
   },
   
-  // eslint-disable-next-line no-unused-vars
   getRevenueAnalytics: async (period = 'monthly') => {
-    await delay();
-    
-    // Calculate revenue breakdown based on order status and payment method
-    const pendingOrders = mockOrders.filter(o => o.orderStatus === 'pending' || o.orderStatus === 'processing');
-    const deliveredOrders = mockOrders.filter(o => o.orderStatus === 'delivered');
-    const confirmedOrders = mockOrders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'shipped');
-    const cancelledOrders = mockOrders.filter(o => o.orderStatus === 'cancelled');
-    
-    const pendingRevenue = pendingOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const earnedRevenue = deliveredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const cancelledRevenue = cancelledOrders.filter(o => o.paymentMethod === 'cod').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const refundedRevenue = cancelledOrders.filter(o => o.paymentMethod === 'online').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    
-    const netRevenue = earnedRevenue + confirmedRevenue;
-    const totalRevenue = mockOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const totalDeductions = cancelledRevenue + refundedRevenue;
-    
-    // Payment method breakdown
-    const paymentMethodBreakdown = {
-      online: {
-        total: mockOrders.filter(o => o.paymentMethod === 'online').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
-        count: mockOrders.filter(o => o.paymentMethod === 'online').length
-      },
-      cod: {
-        total: mockOrders.filter(o => o.paymentMethod === 'cod').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
-        count: mockOrders.filter(o => o.paymentMethod === 'cod').length
+    try {
+      const response = await adminApi.get(`/dashboard/revenue-analytics?period=${period}`);
+      if (response.data && response.data.success) {
+        return {
+          data: response.data.data
+        };
       }
-    };
-    
-    return {
-      data: {
+      // Fallback structure if response format differs
+      return {
+        data: response.data.data || response.data || {}
+      };
+    } catch (error) {
+      console.error('Error fetching revenue analytics:', error);
+      // Return empty structure on error - page will calculate from orders
+      return {
         data: {
-          netRevenue,
-          totalRevenue,
-          totalDeductions,
+          netRevenue: 0,
+          totalRevenue: 0,
+          totalDeductions: 0,
           revenueBreakdown: {
-            pending: {
-              amount: pendingRevenue,
-              count: pendingOrders.length,
-              description: 'Orders placed but revenue not yet recognized'
-            },
-            earned: {
-              amount: earnedRevenue,
-              count: deliveredOrders.length,
-              description: 'Revenue recognized (Online: Payment completed, COD: Delivered)'
-            },
-            confirmed: {
-              amount: confirmedRevenue,
-              count: confirmedOrders.length,
-              description: 'Amount received in admin account'
-            },
-            cancelled: {
-              amount: cancelledRevenue,
-              count: cancelledOrders.filter(o => o.paymentMethod === 'cod').length
-            },
-            refunded: {
-              amount: refundedRevenue,
-              count: cancelledOrders.filter(o => o.paymentMethod === 'online').length
-            }
+            pending: { amount: 0, count: 0, description: 'Orders placed but revenue not yet recognized' },
+            earned: { amount: 0, count: 0, description: 'Revenue recognized (Online: Payment completed, COD: Delivered)' },
+            confirmed: { amount: 0, count: 0, description: 'Amount received in admin account' },
+            cancelled: { amount: 0, count: 0, description: 'Cancelled COD orders' },
+            refunded: { amount: 0, count: 0, description: 'Refunded online payments' }
           },
-          paymentMethodBreakdown
+          paymentMethodBreakdown: {
+            online: { amount: 0, count: 0 },
+            cod: { amount: 0, count: 0 },
+            card: { amount: 0, count: 0 },
+            upi: { amount: 0, count: 0 }
+          }
         }
-      }
-    };
+      };
+    }
   },
 
   getStockSummary: async () => {

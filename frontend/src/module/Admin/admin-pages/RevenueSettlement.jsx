@@ -50,9 +50,7 @@ const RevenueSettlement = () => {
   }, [selectedPeriod]);
 
   useEffect(() => {
-    if (revenueData) {
-      calculateStats();
-    }
+    calculateStats();
   }, [revenueData, orders]);
 
   const fetchRevenueData = async () => {
@@ -66,7 +64,7 @@ const RevenueSettlement = () => {
         setOrders(ordersResponse.data.orders);
       }
       
-      // Fetch revenue analytics (optional, can calculate from orders)
+      // Fetch revenue analytics from backend API
       try {
         const revenueResponse = await adminService.getRevenueAnalytics(selectedPeriod);
         if (revenueResponse.data) {
@@ -74,6 +72,7 @@ const RevenueSettlement = () => {
         }
       } catch (revenueErr) {
         console.warn('Revenue analytics not available, calculating from orders:', revenueErr);
+        setRevenueData(null);
         // Will calculate from orders in calculateStats
       }
     } catch (err) {
@@ -85,7 +84,55 @@ const RevenueSettlement = () => {
   };
 
   const calculateStats = () => {
-    if (!orders || orders.length === 0) return;
+    // If we have revenue data from API, use it; otherwise calculate from orders
+    if (revenueData && revenueData.revenueBreakdown) {
+      const breakdown = revenueData.revenueBreakdown;
+      const paymentBreakdown = revenueData.paymentMethodBreakdown || {};
+      
+      // Use API data for revenue breakdown
+      const stats = {
+        totalRevenue: revenueData.totalRevenue || 0,
+        netRevenue: revenueData.netRevenue || 0,
+        totalDeductions: revenueData.totalDeductions || 0,
+        pendingRevenue: breakdown.pending?.amount || 0,
+        earnedRevenue: breakdown.earned?.amount || 0,
+        confirmedRevenue: breakdown.confirmed?.amount || 0,
+        cancelledRevenue: breakdown.cancelled?.amount || 0,
+        refundedRevenue: breakdown.refunded?.amount || 0,
+        onlineRevenue: (paymentBreakdown.online?.amount || 0) + (paymentBreakdown.card?.amount || 0) + (paymentBreakdown.upi?.amount || 0),
+        codRevenue: paymentBreakdown.cod?.amount || 0,
+        averageOrderValue: 0,
+        totalOrders: orders.length
+      };
+
+      // Calculate average order value from orders
+      if (orders.length > 0) {
+        const totalOrderValue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+        stats.averageOrderValue = totalOrderValue / orders.length;
+      }
+
+      setStats(stats);
+      return;
+    }
+
+    // Fallback: Calculate from orders if API data not available
+    if (!orders || orders.length === 0) {
+      setStats({
+        totalRevenue: 0,
+        netRevenue: 0,
+        totalDeductions: 0,
+        pendingRevenue: 0,
+        earnedRevenue: 0,
+        confirmedRevenue: 0,
+        cancelledRevenue: 0,
+        refundedRevenue: 0,
+        onlineRevenue: 0,
+        codRevenue: 0,
+        averageOrderValue: 0,
+        totalOrders: 0
+      });
+      return;
+    }
 
     const stats = {
       totalRevenue: 0,
@@ -129,7 +176,9 @@ const RevenueSettlement = () => {
         if (order.orderStatus === 'delivered') {
           if (order.paymentMethod === 'cod') {
             stats.earnedRevenue += amount;
-            stats.confirmedRevenue += amount;
+            if (order.revenueStatus === 'confirmed') {
+              stats.confirmedRevenue += amount;
+            }
           } else if (order.paymentStatus === 'completed') {
             stats.earnedRevenue += amount;
             stats.confirmedRevenue += amount;
@@ -144,13 +193,18 @@ const RevenueSettlement = () => {
       
       // Handle cancelled orders separately (regardless of revenueStatus)
       if (order.orderStatus === 'cancelled') {
-        stats.cancelledRevenue += amount;
-        stats.totalDeductions += amount;
+        if (order.paymentMethod === 'cod') {
+          stats.cancelledRevenue += amount;
+          stats.totalDeductions += amount;
+        }
       }
 
-      // Refunded revenue
-      if (order.refundStatus && order.refundStatus !== 'none' && order.refundStatus !== 'rejected') {
-        const refundAmount = order.refundAmount || 0;
+      // Refunded revenue - check for processed, approved, or completed refunds
+      if (order.refundStatus && 
+          order.refundStatus !== 'none' && 
+          order.refundStatus !== 'rejected' &&
+          (order.refundStatus === 'processed' || order.refundStatus === 'approved' || order.refundStatus === 'completed')) {
+        const refundAmount = order.refundAmount || order.totalPrice || 0;
         stats.refundedRevenue += refundAmount;
         stats.totalDeductions += refundAmount;
       }
@@ -160,7 +214,7 @@ const RevenueSettlement = () => {
 
     // Calculate average order value
     if (orders.length > 0) {
-      const totalOrderValue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+      const totalOrderValue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
       stats.averageOrderValue = totalOrderValue / orders.length;
     }
 

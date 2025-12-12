@@ -179,6 +179,27 @@ const orderService = {
       }
       throw { success: false, message: error.message || 'Failed to confirm COD receipt' };
     }
+  },
+
+  // Track order by order number or tracking number (Public)
+  trackOrder: async (identifier, phone) => {
+    try {
+      let url = `/orders/track/${identifier}`;
+      if (phone) {
+        url += `?phone=${encodeURIComponent(phone)}`;
+      }
+      const response = await api.get(url);
+      return {
+        success: true,
+        data: response.data.data || response.data
+      };
+    } catch (error) {
+      console.error('Track order error:', error);
+      if (error.response?.data) {
+        throw error.response.data;
+      }
+      throw { success: false, message: error.message || 'Failed to track order' };
+    }
   }
 };
 

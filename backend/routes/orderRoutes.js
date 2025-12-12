@@ -9,10 +9,14 @@ const {
   updateOrderStatus,
   handleCancellationRequest,
   processRefund,
-  confirmCODReceipt
+  confirmCODReceipt,
+  trackOrder
 } = require('../controller/orderController');
 const { protect } = require('../middleware/auth');
 const { protectAdmin } = require('../middleware/adminAuth');
+
+// Public route for order tracking
+router.get('/track/:identifier', trackOrder);
 
 // User routes (protected with protect middleware)
 router.post('/', protect, createOrder);

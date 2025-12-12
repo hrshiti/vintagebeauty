@@ -50,17 +50,23 @@ const Footer = () => {
                 Combo Deals
               </Link>
               <Link
+                to="/blogs"
+                className="text-gray-400 hover:text-[#D4AF37] transition-colors"
+              >
+                Blogs
+              </Link>
+              <Link
                 to="/account"
                 className="text-gray-400 hover:text-[#D4AF37] transition-colors"
               >
                 My Account
               </Link>
-              <button
-                type="button"
-                className="text-gray-400 hover:text-[#D4AF37] transition-colors cursor-default md:cursor-text"
+              <Link
+                to="/track-order"
+                className="text-gray-400 hover:text-[#D4AF37] transition-colors"
               >
-                Track Order (Soon)
-              </button>
+                Track Order
+              </Link>
             </div>
           </div>
 

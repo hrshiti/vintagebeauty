@@ -11,6 +11,7 @@ import logo from '../assets/logo vintage.png';
 import heroimg from '../assets/heroimg.png';
 import { pageVariants } from '../utils/pageAnimations';
 import toast from 'react-hot-toast';
+import { trackProductView, trackAddToCart } from '../utils/activityTracker';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -64,6 +65,9 @@ const ProductDetail = () => {
         if (response.success && response.data) {
           const productData = response.data;
           setProduct(productData);
+          
+          // Track product view
+          trackProductView(productData);
 
           // Fetch related products from same category
           if (productData.category) {
@@ -214,6 +218,10 @@ const ProductDetail = () => {
     const sizeValue = selectedSize || (product.sizes?.[2]?.size || product.sizes?.[0]?.size || '100ml');
     try {
       await addItem(product, quantity, sizeValue);
+      
+      // Track add to cart activity
+      trackAddToCart(product, quantity);
+      
       setToastMessage(`${product.name} added to cart!`);
       setShowToast(true);
     } catch (err) {

@@ -67,9 +67,16 @@ const RefundManagement = () => {
       const ordersResponse = await adminService.getOrders();
       const orders = ordersResponse.data.orders || [];
       
-      // Filter orders that have refund information
+      // Filter orders that have refund information OR cancellation requests
+      // Include orders with:
+      // 1. refundStatus !== 'none' (refunds)
+      // 2. cancellationStatus === 'requested' (pending cancellation requests that may need refunds)
       const refundRecords = orders
-        .filter(order => order.refundStatus && order.refundStatus !== 'none')
+        .filter(order => {
+          const hasRefund = order.refundStatus && order.refundStatus !== 'none';
+          const hasCancellationRequest = order.cancellationStatus === 'requested' || order.cancellationStatus === 'approved';
+          return hasRefund || hasCancellationRequest;
+        })
         .map(order => {
           // Get user information from populated user field
           const user = order.user || {};
@@ -79,8 +86,23 @@ const RefundManagement = () => {
           // Get order amount
           const orderAmount = order.totalPrice || 0;
           
-          // Determine refund amount
-          const refundAmount = order.refundAmount || 0;
+          // Determine refund amount and status
+          // If cancellation is requested/approved but refundStatus is 'none', handle based on payment method
+          let refundAmount = order.refundAmount || 0;
+          let refundStatus = order.refundStatus || 'none';
+          
+          // If cancellation is requested/approved but refund not yet processed
+          if ((order.cancellationStatus === 'requested' || order.cancellationStatus === 'approved') && 
+              refundStatus === 'none') {
+            // For online payments that are completed, refund is needed
+            if (order.paymentMethod === 'online' && order.paymentStatus === 'completed') {
+              refundStatus = 'pending';
+              refundAmount = orderAmount; // Set refund amount to order total
+            }
+            // For COD orders, no refund is needed (payment not yet received)
+            // But we still show them in the list for tracking purposes
+            // They will have refundStatus = 'none' and refundAmount = 0
+          }
           
           return {
             id: order._id,
@@ -90,15 +112,16 @@ const RefundManagement = () => {
             paymentMethod: order.paymentMethod,
             orderAmount: orderAmount,
             refundAmount: refundAmount,
-            refundStatus: order.refundStatus,
+            refundStatus: refundStatus,
             refundTransactionId: order.razorpay?.paymentId || null,
             refundInitiatedAt: order.refundProcessedAt || (order.cancelledAt || order.createdAt),
             refundCompletedAt: order.refundStatus === 'completed' ? (order.refundProcessedAt || order.updatedAt) : null,
             refundFailedReason: null, // Not in current model
             cancellationReason: order.cancellationReason,
-            cancellationRequestedAt: order.cancellationStatus === 'requested' ? order.createdAt : null,
+            cancellationRequestedAt: (order.cancellationStatus === 'requested' || order.cancellationStatus === 'approved') ? (order.cancellationRequestedAt || order.createdAt) : null,
             cancellationApprovedAt: order.cancelledAt,
             cancellationApprovedBy: order.cancellationApprovedBy,
+            cancellationStatus: order.cancellationStatus,
             orderStatus: order.orderStatus,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt
@@ -556,6 +579,16 @@ const RefundManagement = () => {
                         <div className="text-sm text-gray-500">
                           {refund.paymentMethod === 'online' ? 'Online Payment' : 'Cash on Delivery'}
                         </div>
+                        {refund.cancellationStatus === 'requested' && (
+                          <div className="text-xs text-orange-600 font-medium">
+                            ⚠️ Cancellation Requested
+                          </div>
+                        )}
+                        {refund.cancellationStatus === 'approved' && refund.refundStatus === 'pending' && (
+                          <div className="text-xs text-yellow-600 font-medium">
+                            ✓ Cancellation Approved - Refund Pending
+                          </div>
+                        )}
                         {refund.refundTransactionId && (
                           <div className="text-xs text-gray-400">
                             TXN: {refund.refundTransactionId}
@@ -610,6 +643,11 @@ const RefundManagement = () => {
                           <RefreshCw className="h-4 w-4" />
                           Process
                         </button>
+                      )}
+                      {refund.cancellationStatus === 'requested' && refund.refundStatus === 'none' && refund.paymentMethod === 'online' && (
+                        <span className="text-xs text-gray-500 italic">
+                          Approve cancellation first
+                        </span>
                       )}
                     </div>
                   </td>

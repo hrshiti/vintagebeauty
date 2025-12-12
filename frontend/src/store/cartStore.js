@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import cartService from '../services/cartService';
 import { useAuthStore } from './authStore';
+import { trackAddToCart } from '../utils/activityTracker';
 
 export const useCartStore = create(
   persist(
@@ -159,6 +160,13 @@ export const useCartStore = create(
             items: [...state.items, newItem]
           };
         });
+        
+        // Track add to cart activity (fire and forget)
+        try {
+          trackAddToCart(product, quantity);
+        } catch (trackError) {
+          // Silently fail - analytics should never break cart functionality
+        }
         
         // Sync with backend if logged in
         if (token) {

@@ -12,6 +12,7 @@ import Footer from './Footer';
 import logo from '../assets/logo vintage.png';
 import heroimg from '../assets/heroimg.png';
 import toast from 'react-hot-toast';
+import { trackCategoryVisit, trackAddToCart, trackProductView } from '../utils/activityTracker';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -244,6 +245,39 @@ const Home = () => {
 
     fetchAnnouncements();
   }, []);
+
+  // Track views for announcements when they are displayed (once per session)
+  useEffect(() => {
+    if (promotionalAnnouncements.length === 0) return;
+
+    const trackViews = async () => {
+      const viewedKey = 'announcement_views_tracked';
+      const viewedIds = JSON.parse(sessionStorage.getItem(viewedKey) || '[]');
+
+      for (const announcement of promotionalAnnouncements) {
+        const announcementId = announcement._id || announcement.id;
+        if (!announcementId) continue;
+
+        // Only track if not already viewed in this session
+        if (!viewedIds.includes(announcementId)) {
+          try {
+            await announcementService.incrementViews(announcementId);
+            viewedIds.push(announcementId);
+          } catch (error) {
+            console.error(`Error tracking view for announcement ${announcementId}:`, error);
+            // Continue tracking other announcements even if one fails
+          }
+        }
+      }
+
+      // Update sessionStorage with tracked IDs
+      sessionStorage.setItem(viewedKey, JSON.stringify(viewedIds));
+    };
+
+    // Small delay to ensure announcements are rendered
+    const timer = setTimeout(trackViews, 500);
+    return () => clearTimeout(timer);
+  }, [promotionalAnnouncements]);
 
   // Banner Carousel Component
   const BannerCarousel = () => {
@@ -769,6 +803,10 @@ const Home = () => {
                 key={category}
                 onClick={() => {
                   setActiveCategory(category);
+                  
+                  // Track category visit
+                  trackCategoryVisit(category);
+                  
                   // If cached, show immediately
                   if (productsCache[category]) {
                     setProducts(productsCache[category]);
@@ -816,7 +854,31 @@ const Home = () => {
             <div className="flex items-center justify-between gap-3 md:gap-6 py-4 md:py-5">
               {/* Left Side - First Announcement or Fallback */}
               {promotionalAnnouncements.length > 0 ? (
-                <div className="flex items-center gap-2 md:gap-3 flex-1">
+                <div 
+                  className={`flex items-center gap-2 md:gap-3 flex-1 ${promotionalAnnouncements[0].link?.url ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                  onClick={async () => {
+                    const announcement = promotionalAnnouncements[0];
+                    const announcementId = announcement._id || announcement.id;
+                    
+                    // Track click
+                    if (announcementId) {
+                      try {
+                        await announcementService.incrementClicks(announcementId);
+                      } catch (error) {
+                        console.error(`Error tracking click for announcement ${announcementId}:`, error);
+                      }
+                    }
+                    
+                    // Navigate to link if available
+                    if (announcement.link?.url) {
+                      if (announcement.link.url.startsWith('http://') || announcement.link.url.startsWith('https://')) {
+                        window.open(announcement.link.url, '_blank');
+                      } else {
+                        navigate(announcement.link.url);
+                      }
+                    }
+                  }}
+                >
                   <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
                     <svg className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -877,7 +939,31 @@ const Home = () => {
 
               {/* Right Side - Second Announcement or Fallback */}
               {promotionalAnnouncements.length > 1 ? (
-                <div className="flex items-center gap-2 md:gap-3 flex-1 justify-end">
+                <div 
+                  className={`flex items-center gap-2 md:gap-3 flex-1 justify-end ${promotionalAnnouncements[1].link?.url ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                  onClick={async () => {
+                    const announcement = promotionalAnnouncements[1];
+                    const announcementId = announcement._id || announcement.id;
+                    
+                    // Track click
+                    if (announcementId) {
+                      try {
+                        await announcementService.incrementClicks(announcementId);
+                      } catch (error) {
+                        console.error(`Error tracking click for announcement ${announcementId}:`, error);
+                      }
+                    }
+                    
+                    // Navigate to link if available
+                    if (announcement.link?.url) {
+                      if (announcement.link.url.startsWith('http://') || announcement.link.url.startsWith('https://')) {
+                        window.open(announcement.link.url, '_blank');
+                      } else {
+                        navigate(announcement.link.url);
+                      }
+                    }
+                  }}
+                >
                   <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 text-right">
                     <span className="text-sm md:text-base font-semibold text-white">
                       {promotionalAnnouncements[1].title || promotionalAnnouncements[1].content?.split('•')[0]?.trim() || 'FLAT 5% OFF'}
@@ -1107,6 +1193,7 @@ const Home = () => {
                     >
                       <Link
                         to={`/product/${productId}`}
+                        onClick={() => trackProductView(product)}
                         className="flex-shrink-0 w-36 md:w-48 lg:w-56 bg-gray-900 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer block border border-gray-800 hover:border-[#D4AF37]/50 relative"
                         style={{ minHeight: '280px' }}
                       >
@@ -1235,7 +1322,7 @@ const Home = () => {
               </button>
               <button 
                 onClick={() => {
-                  navigate('/orders');
+                  navigate('/track-order');
                   setIsMenuOpen(false);
                 }}
                 className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-lg hover:bg-gray-800 transition cursor-pointer"

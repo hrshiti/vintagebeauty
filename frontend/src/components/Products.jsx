@@ -9,6 +9,7 @@ import { useCartStore } from '../store/cartStore';
 import BottomNavbar from './BottomNavbar';
 import logo from '../assets/logo vintage.png';
 import heroimg from '../assets/heroimg.png';
+import { trackCategoryVisit, trackProductView } from '../utils/activityTracker';
 
 const Products = () => {
   const navigate = useNavigate();
@@ -105,6 +106,13 @@ const Products = () => {
 
     fetchProducts();
   }, []);
+
+  // Track category visit when category is selected from URL
+  useEffect(() => {
+    if (selectedCategory) {
+      trackCategoryVisit(selectedCategory);
+    }
+  }, [selectedCategory]);
 
   const handleWishlistToggle = async (product, e) => {
     if (e) {
@@ -403,6 +411,7 @@ const Products = () => {
                   >
                     <Link
                       to={`/product/${productId}`}
+                      onClick={() => trackProductView(product)}
                       className="bg-gray-900 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer group relative block"
                     >
                       {/* Product Image */}

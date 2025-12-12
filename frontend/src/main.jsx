@@ -10,11 +10,22 @@ if (typeof window !== 'undefined') {
   
   console.error = (...args) => {
     const message = args[0]?.toString() || '';
+    const fullMessage = args.map(arg => String(arg)).join(' ');
+    
     // Suppress Sentry DSN errors from browser extensions/dev tools
     if (message.includes('Invalid Sentry Dsn') || 
         (message.includes('sentry.io') && message.includes('dsn'))) {
       return; // Suppress this error - it's from a browser extension
     }
+    
+    // Suppress Socket.IO connection errors when backend is not available
+    if (fullMessage.includes('Socket.IO connection error') ||
+        fullMessage.includes('TransportError') ||
+        fullMessage.includes('websocket error') ||
+        fullMessage.includes('WebSocket connection to') && fullMessage.includes('failed')) {
+      return; // Suppress Socket.IO connection errors - they're handled gracefully
+    }
+    
     originalError.apply(console, args);
   };
   

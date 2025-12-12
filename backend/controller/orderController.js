@@ -307,6 +307,27 @@ exports.cancelOrder = async (req, res, next) => {
       });
     }
 
+    // Emit Socket.IO event for real-time cancellation status update
+    const io = req.app.get('io');
+    if (io) {
+      const orderRoom = `order-${order._id}`;
+      const userRoom = `user-${order.user}`;
+      
+      const notificationData = {
+        orderId: order._id.toString(),
+        orderStatus: order.orderStatus,
+        cancellationStatus: order.cancellationStatus,
+        cancellationReason: order.cancellationReason,
+        trackingHistory: order.trackingHistory,
+        updatedAt: order.updatedAt
+      };
+
+      io.to(orderRoom).emit('order-status-updated', notificationData);
+      io.to(userRoom).emit('order-status-updated', notificationData);
+      
+      console.log(`Emitted cancellation request update for order ${order._id} to user ${order.user}`);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Cancellation request submitted',
@@ -477,6 +498,29 @@ exports.handleCancellationRequest = async (req, res, next) => {
 
     await order.save();
 
+    // Emit Socket.IO event for real-time cancellation status update
+    const io = req.app.get('io');
+    if (io) {
+      const orderRoom = `order-${order._id}`;
+      const userRoom = `user-${order.user}`;
+      
+      const notificationData = {
+        orderId: order._id.toString(),
+        orderStatus: order.orderStatus,
+        cancellationStatus: order.cancellationStatus,
+        cancellationReason: order.cancellationReason,
+        refundStatus: order.refundStatus,
+        refundAmount: order.refundAmount,
+        trackingHistory: order.trackingHistory,
+        updatedAt: order.updatedAt
+      };
+
+      io.to(orderRoom).emit('order-status-updated', notificationData);
+      io.to(userRoom).emit('order-status-updated', notificationData);
+      
+      console.log(`Emitted cancellation ${action} update for order ${order._id} to user ${order.user}`);
+    }
+
     res.status(200).json({
       success: true,
       message: `Cancellation ${action}ed successfully`,
@@ -525,6 +569,28 @@ exports.processRefund = async (req, res, next) => {
     order.paymentStatus = 'refunded';
 
     await order.save();
+
+    // Emit Socket.IO event for real-time refund status update
+    const io = req.app.get('io');
+    if (io) {
+      const orderRoom = `order-${order._id}`;
+      const userRoom = `user-${order.user}`;
+      
+      const notificationData = {
+        orderId: order._id.toString(),
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        refundStatus: order.refundStatus,
+        refundAmount: order.refundAmount,
+        trackingHistory: order.trackingHistory,
+        updatedAt: order.updatedAt
+      };
+
+      io.to(orderRoom).emit('order-status-updated', notificationData);
+      io.to(userRoom).emit('order-status-updated', notificationData);
+      
+      console.log(`Emitted refund processed update for order ${order._id} to user ${order.user}`);
+    }
 
     res.status(200).json({
       success: true,
@@ -584,6 +650,69 @@ exports.confirmCODReceipt = async (req, res, next) => {
         order,
         confirmedAmount: order.revenueAmount
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Track order by order number or tracking number (Public)
+// @route   GET /api/orders/track/:identifier
+// @access  Public
+exports.trackOrder = async (req, res, next) => {
+  try {
+    const { identifier } = req.params;
+    const { phone } = req.query; // Optional phone verification
+
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order number or tracking number is required'
+      });
+    }
+
+    // Search by order number or tracking number
+    const order = await Order.findOne({
+      $or: [
+        { orderNumber: identifier },
+        { trackingNumber: identifier }
+      ]
+    })
+      .populate('orderItems.product', 'name images price')
+      .populate('user', 'name email phone');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found. Please check your order number or tracking number.'
+      });
+    }
+
+    // Optional phone verification for security
+    if (phone && order.user && order.user.phone) {
+      const orderPhone = order.user.phone.replace(/\D/g, '');
+      const providedPhone = phone.replace(/\D/g, '');
+      
+      if (orderPhone !== providedPhone && !orderPhone.endsWith(providedPhone) && !providedPhone.endsWith(orderPhone)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Phone number does not match. Please provide the correct phone number associated with this order.'
+        });
+      }
+    }
+
+    // Don't send sensitive user data
+    const orderData = order.toObject();
+    if (orderData.user) {
+      orderData.user = {
+        name: orderData.user.name,
+        phone: orderData.user.phone ? orderData.user.phone.replace(/(\d{2})\d{6}(\d{2})/, '$1******$2') : null // Mask phone number
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      data: orderData
     });
   } catch (error) {
     next(error);

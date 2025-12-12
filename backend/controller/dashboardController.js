@@ -11,8 +11,16 @@ const getDateRange = (period) => {
     case 'daily':
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       break;
+    case 'weekly':
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 7);
+      break;
     case 'monthly':
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'quarterly':
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
       break;
     case 'yearly':
       startDate = new Date(now.getFullYear(), 0, 1);
@@ -235,11 +243,18 @@ exports.getRevenueAnalytics = async (req, res, next) => {
           revenueBreakdown.cancelled.amount += orderAmount;
           revenueBreakdown.cancelled.count++;
           totalDeductions += orderAmount;
-        } else if (order.refundStatus === 'processed' || order.refundStatus === 'approved') {
+        } else if (order.refundStatus === 'processed' || order.refundStatus === 'approved' || order.refundStatus === 'completed') {
           revenueBreakdown.refunded.amount += orderAmount;
           revenueBreakdown.refunded.count++;
           totalDeductions += orderAmount;
         }
+      } else if (order.refundStatus && order.refundStatus !== 'none' && order.refundStatus !== 'rejected' && 
+                 (order.refundStatus === 'processed' || order.refundStatus === 'approved' || order.refundStatus === 'completed')) {
+        // Handle refunds for non-cancelled orders (if any)
+        const refundAmount = order.refundAmount || orderAmount;
+        revenueBreakdown.refunded.amount += refundAmount;
+        revenueBreakdown.refunded.count++;
+        totalDeductions += refundAmount;
       } else if (order.orderStatus === 'delivered') {
         if (order.paymentMethod === 'cod') {
           revenueBreakdown.earned.amount += orderAmount;

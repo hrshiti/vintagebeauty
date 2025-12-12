@@ -68,10 +68,8 @@ export const useAuthStore = create(
         localStorage.setItem('token', cleanToken);
         localStorage.setItem('loginTimestamp', loginTime.toString());
         
-        // Also store user data in localStorage as backup
-        if (userData) {
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
+        // User data is already stored in Zustand's auth-storage (persisted automatically)
+        // No need for separate localStorage 'user' key
         
         // Verify storage was successful
         const storedToken = localStorage.getItem('token');
@@ -105,9 +103,8 @@ export const useAuthStore = create(
           if (localStorage.getItem('token')) {
             localStorage.removeItem('token');
           }
-          if (localStorage.getItem('user')) {
-            localStorage.removeItem('user');
-          }
+          // User data is stored in auth-storage (Zustand), will be cleared with auth-storage
+          // No separate 'user' key needed
           if (localStorage.getItem('auth-storage')) {
             localStorage.removeItem('auth-storage');
           }
@@ -149,10 +146,8 @@ export const useAuthStore = create(
         localStorage.setItem('token', cleanToken);
         localStorage.setItem('loginTimestamp', loginTime.toString());
         
-        // Also store user data in localStorage as backup
-        if (userData) {
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
+        // User data is already stored in Zustand's auth-storage (persisted automatically)
+        // No need for separate localStorage 'user' key
         
         // Verify storage was successful
         const storedToken = localStorage.getItem('token');

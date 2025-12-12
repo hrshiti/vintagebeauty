@@ -16,21 +16,34 @@ class SocketService {
     const baseURL = API_CONFIG.baseURL.replace('/api', '');
     const backendUrl = baseURL || 'https://vintagebeauty-1.onrender.com';
     
-    // Log connection attempt only in development
-    if (import.meta.env.DEV) {
+    // Log connection attempt only in development (and only once)
+    if (import.meta.env.DEV && !this._connectionLogged) {
       console.log('Socket.IO connecting to:', backendUrl);
+      this._connectionLogged = true;
     }
     
-    // Get authentication token from localStorage
-    const token = localStorage.getItem('token');
+    // Get authentication token from localStorage or Zustand store
+    let token = localStorage.getItem('token');
+    if (!token) {
+      // Try to get from Zustand auth store if available
+      try {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
+          const authData = JSON.parse(authStorage);
+          token = authData?.state?.token || null;
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
     
     this.socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 10, // Increased retry attempts
+      reconnectionDelay: 2000, // Start with 2 second delay
+      reconnectionAttempts: 5, // Limit retry attempts to avoid spam
       reconnectionDelayMax: 10000, // Max delay between retries
-      timeout: 20000, // Connection timeout (20 seconds)
+      timeout: 10000, // Connection timeout (10 seconds - reduced from 20)
       forceNew: false,
       upgrade: true,
       rememberUpgrade: true,
@@ -44,7 +57,9 @@ class SocketService {
       autoConnect: true,
       // Increase ping timeout for slow connections
       pingTimeout: 60000,
-      pingInterval: 25000
+      pingInterval: 25000,
+      // Suppress connection errors in console
+      withCredentials: true
     });
 
     this.socket.on('connect', () => {
@@ -63,13 +78,30 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      // Only log errors in development or if it's not a timeout
-      if (import.meta.env.DEV || (!error.message?.includes('timeout') && !error.message?.includes('xhr poll error'))) {
-        console.error('Socket.IO connection error:', error);
-      } else {
-        // In production, silently handle timeout errors - Socket.IO will retry automatically
-        console.warn('Socket.IO connection timeout - retrying...');
+      // Suppress common connection errors that are expected when backend is not available
+      const errorMessage = error?.message || '';
+      const errorType = error?.type || '';
+      
+      // Suppress these common errors:
+      // - WebSocket connection failures (backend not running)
+      // - Transport errors (network issues)
+      // - Timeout errors (slow connections)
+      // - XHR poll errors (fallback transport failures)
+      const shouldSuppress = 
+        errorType === 'TransportError' ||
+        errorMessage.includes('websocket error') ||
+        errorMessage.includes('WebSocket connection failed') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('xhr poll error') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('Network Error');
+      
+      if (!shouldSuppress && import.meta.env.DEV) {
+        // Only log non-common errors in development
+        console.warn('Socket.IO connection error:', error);
       }
+      
+      // In production, silently handle all connection errors - Socket.IO will retry automatically
       this.isConnected = false;
     });
 

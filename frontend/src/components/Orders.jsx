@@ -16,6 +16,9 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Fetch orders from backend API
   useEffect(() => {
@@ -34,6 +37,11 @@ const Orders = () => {
             totalPrice: order.totalPrice || 0,
             createdAt: order.createdAt,
             trackingNumber: order.trackingNumber || `TRK${order._id.toString().slice(-8).toUpperCase()}`,
+            refundStatus: order.refundStatus || 'none',
+            refundAmount: order.refundAmount || 0,
+            cancellationStatus: order.cancellationStatus || 'none',
+            cancellationReason: order.cancellationReason || '',
+            cancelledAt: order.cancelledAt || null,
             items: order.orderItems?.map(item => ({
               id: item.product?._id || item.product,
               name: item.name,
@@ -76,7 +84,7 @@ const Orders = () => {
 
     // Set up order status update listener
     const handleOrderStatusUpdate = (data) => {
-      const { orderId, orderStatus, trackingHistory } = data;
+      const { orderId, orderStatus, trackingHistory, cancellationStatus, refundStatus, refundAmount } = data;
       
       // Prepare notification data outside of setState
       const statusMessages = {
@@ -84,7 +92,8 @@ const Orders = () => {
         'processing': 'Your order is being processed',
         'shipped': 'Your order has been shipped',
         'out-for-delivery': 'Your order is out for delivery',
-        'delivered': 'Your order has been delivered'
+        'delivered': 'Your order has been delivered',
+        'cancelled': 'Your order has been cancelled'
       };
 
       const message = statusMessages[orderStatus] || `Your order status has been updated to ${orderStatus}`;
@@ -93,11 +102,14 @@ const Orders = () => {
       setOrders(prevOrders => {
         return prevOrders.map(order => {
           if (order.id === orderId) {
-            // Update order status and tracking history
+            // Update order status, tracking history, cancellation and refund status
             return {
               ...order,
-              orderStatus: orderStatus,
-              trackingHistory: trackingHistory || order.trackingHistory
+              orderStatus: orderStatus || order.orderStatus,
+              trackingHistory: trackingHistory || order.trackingHistory,
+              cancellationStatus: cancellationStatus !== undefined ? cancellationStatus : order.cancellationStatus,
+              refundStatus: refundStatus !== undefined ? refundStatus : order.refundStatus,
+              refundAmount: refundAmount !== undefined ? refundAmount : order.refundAmount
             };
           }
           return order;
@@ -109,8 +121,11 @@ const Orders = () => {
         if (prevSelected && prevSelected.id === orderId) {
           return {
             ...prevSelected,
-            orderStatus: orderStatus,
-            trackingHistory: trackingHistory || prevSelected.trackingHistory
+            orderStatus: orderStatus || prevSelected.orderStatus,
+            trackingHistory: trackingHistory || prevSelected.trackingHistory,
+            cancellationStatus: cancellationStatus !== undefined ? cancellationStatus : prevSelected.cancellationStatus,
+            refundStatus: refundStatus !== undefined ? refundStatus : prevSelected.refundStatus,
+            refundAmount: refundAmount !== undefined ? refundAmount : prevSelected.refundAmount
           };
         }
         return prevSelected;
@@ -267,6 +282,96 @@ const Orders = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Check if order can be cancelled
+  const canCancelOrder = (order) => {
+    const nonCancellableStatuses = ['shipped', 'out-for-delivery', 'delivered', 'cancelled'];
+    return !nonCancellableStatuses.includes(order.orderStatus?.toLowerCase()) && 
+           order.cancellationStatus !== 'requested' && 
+           order.cancellationStatus !== 'approved';
+  };
+
+  // Handle cancel order
+  const handleCancelOrder = async (orderId) => {
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancellation');
+      return;
+    }
+
+    try {
+      setCancellingOrder(orderId);
+      const response = await orderService.cancelOrder(orderId, cancelReason.trim());
+      
+      if (response.success) {
+        toast.success('Cancellation request submitted successfully. Admin will review your request.');
+        
+        // Update the order in the list
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, cancellationStatus: 'requested', cancellationReason: cancelReason.trim() }
+              : order
+          )
+        );
+        
+        setShowCancelModal(false);
+        setCancelReason('');
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      console.error('Cancel order error:', error);
+      toast.error(error.message || 'Failed to cancel order. Please try again.');
+    } finally {
+      setCancellingOrder(null);
+    }
+  };
+
+  // Get refund status display
+  const getRefundStatusDisplay = (order) => {
+    if (!order.refundStatus || order.refundStatus === 'none') {
+      return null;
+    }
+
+    const statusConfig = {
+      'pending': {
+        text: 'Refund Pending',
+        color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+        icon: '⏳'
+      },
+      'approved': {
+        text: 'Refund Approved',
+        color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        icon: '✅'
+      },
+      'processed': {
+        text: 'Refund Processed',
+        color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+        icon: '💳'
+      },
+      'completed': {
+        text: 'Refund Completed',
+        color: 'bg-green-500/20 text-green-400 border-green-500/30',
+        icon: '✓'
+      },
+      'rejected': {
+        text: 'Refund Rejected',
+        color: 'bg-red-500/20 text-red-400 border-red-500/30',
+        icon: '❌'
+      }
+    };
+
+    const config = statusConfig[order.refundStatus] || statusConfig['pending'];
+    
+    return (
+      <div className={`px-2 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${config.color}`}>
+        <span>{config.icon}</span>
+        <span>{config.text}</span>
+        {order.refundAmount > 0 && (
+          <span className="ml-1">₹{order.refundAmount.toLocaleString()}</span>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -434,7 +539,7 @@ const Orders = () => {
                     Placed on {formatDate(order.createdAt)}
                   </p>
                   {/* Payment Status */}
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       order.paymentMethod === 'cod' 
                         ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
@@ -455,6 +560,24 @@ const Orders = () => {
                         : 'Payment: ' + (order.paymentStatus || 'Pending')
                       }
                     </span>
+                    {/* Refund Status */}
+                    {getRefundStatusDisplay(order)}
+                    {/* Cancellation Status */}
+                    {order.cancellationStatus === 'requested' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                        ⏳ Cancellation Requested
+                      </span>
+                    )}
+                    {order.cancellationStatus === 'approved' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                        ✓ Cancellation Approved
+                      </span>
+                    )}
+                    {order.cancellationStatus === 'rejected' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                        ❌ Cancellation Rejected
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -522,6 +645,21 @@ const Orders = () => {
                   </svg>
                   {selectedOrder?.id === order.id ? 'Hide Tracking' : 'View Tracking'}
                 </button>
+                {canCancelOrder(order) && (
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setShowCancelModal(true);
+                      setCancelReason('');
+                    }}
+                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium px-4 py-2.5 rounded-lg text-sm transition-all duration-300 border border-red-500/30 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Cancel Order
+                  </button>
+                )}
                 <button
                   onClick={() => navigate(`/product/${order.items?.[0]?.id}`)}
                   className="flex-1 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] font-medium px-4 py-2.5 rounded-lg text-sm transition-all duration-300 border border-[#D4AF37]/30"
@@ -567,6 +705,61 @@ const Orders = () => {
           ))}
         </div>
       </div>
+
+      {/* Cancel Order Modal */}
+      {showCancelModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl max-w-md w-full border border-gray-800">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Cancel Order</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Are you sure you want to cancel order <span className="text-[#D4AF37] font-semibold">#{selectedOrder.orderNumber}</span>?
+              </p>
+              <div className="mb-4">
+                <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-300 mb-2">
+                  Reason for Cancellation <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  id="cancelReason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Please provide a reason for cancellation..."
+                  rows={4}
+                  className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] transition-colors resize-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                    setSelectedOrder(null);
+                  }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition-all duration-300"
+                  disabled={cancellingOrder === selectedOrder.id}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleCancelOrder(selectedOrder.id)}
+                  disabled={cancellingOrder === selectedOrder.id || !cancelReason.trim()}
+                  className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium px-4 py-2.5 rounded-lg text-sm transition-all duration-300 border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cancellingOrder === selectedOrder.id ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    'Confirm Cancellation'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNavbar />
     </div>
