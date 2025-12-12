@@ -1,5 +1,6 @@
 const Admin = require('../model/Admin');
 const generateToken = require('../utils/generateToken');
+const bcrypt = require('bcryptjs');
 
 
 // @desc    Register new admin
@@ -267,7 +268,9 @@ exports.updateAdminProfile = async (req, res, next) => {
           message: 'New password must be at least 6 characters long'
         });
       }
-      updateFields.password = newPassword;
+      // Hash the password before saving (since findByIdAndUpdate doesn't trigger pre-save hook)
+      const salt = await bcrypt.genSalt(10);
+      updateFields.password = await bcrypt.hash(newPassword.trim(), salt);
     }
 
     // Update admin
