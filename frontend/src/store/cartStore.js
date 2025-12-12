@@ -42,7 +42,8 @@ export const useCartStore = create(
                   quantity: item.quantity || 1,
                   size: item.size || null,
                   price: item.selectedPrice || item.price || product.price || 699,
-                  selectedPrice: item.selectedPrice || item.price || product.price || 699
+                  selectedPrice: item.selectedPrice || item.price || product.price || 699,
+                  comboDeal: item.comboDeal || null
                 };
               });
               set({ items: transformedItems });
@@ -67,13 +68,46 @@ export const useCartStore = create(
         }
       },
       
-      addItem: async (product, quantity = 1, size = null) => {
+      addItem: async (product, quantity = 1, size = null, comboDeal = null) => {
         const token = localStorage.getItem('token');
         const productId = product._id || product.id || product;
         const selectedSize = size || (product.sizes?.[2]?.size || product.sizes?.[0]?.size || '100ml');
         const selectedPrice = size 
           ? product.sizes?.find(s => s.size === size)?.price 
           : (product.sizes?.[2]?.price || product.sizes?.[0]?.price || product.price || 699);
+        const stockValue = Number(
+          product?.stock ??
+          product?.product?.stock
+        );
+        const isStockKnown = Number.isFinite(stockValue);
+        const existingItem = get().items.find(item => {
+          const itemProductId = typeof item.product === 'object' 
+            ? String(item.product._id || item.product.id)
+            : String(item.product || '');
+          return String(itemProductId) === String(productId) && item.size === selectedSize;
+        });
+        const currentQuantity = existingItem?.quantity || 0;
+        const newQuantity = currentQuantity + quantity;
+
+        // Block adding items that are out of stock or exceed available quantity
+        if (product?.inStock === false || (isStockKnown && stockValue <= 0)) {
+          throw {
+            success: false,
+            message: 'This item is out of stock',
+            code: 'OUT_OF_STOCK'
+          };
+        }
+
+        if (isStockKnown && newQuantity > stockValue) {
+          const remaining = Math.max(stockValue - currentQuantity, 0);
+          throw {
+            success: false,
+            message: remaining > 0 
+              ? `Only ${remaining} left in stock`
+              : 'This item is out of stock',
+            code: 'OUT_OF_STOCK'
+          };
+        }
         
         // Update local state immediately for better UX
         set((state) => {
@@ -94,30 +128,42 @@ export const useCartStore = create(
                   ? String(item.product._id || item.product.id)
                   : String(item.product || '');
                 if (String(itemProductId) === productIdStr && item.size === selectedSize) {
-                  return { ...item, quantity: item.quantity + quantity };
+                  const updatedItem = { ...item, quantity: item.quantity + quantity };
+                  // Update combo deal info if provided
+                  if (comboDeal) {
+                    updatedItem.comboDeal = comboDeal;
+                  }
+                  return updatedItem;
                 }
                 return item;
               })
             };
           }
           
+          const newItem = {
+            product: productId,
+            name: product.name,
+            image: product.images?.[0] || product.image,
+            quantity,
+            size: selectedSize,
+            price: selectedPrice,
+            selectedPrice
+          };
+          
+          // Add combo deal info if provided
+          if (comboDeal) {
+            newItem.comboDeal = comboDeal;
+          }
+          
           return {
-            items: [...state.items, {
-              product: productId,
-              name: product.name,
-              image: product.images?.[0] || product.image,
-              quantity,
-              size: selectedSize,
-              price: selectedPrice,
-              selectedPrice
-            }]
+            items: [...state.items, newItem]
           };
         });
         
         // Sync with backend if logged in
         if (token) {
           try {
-            await cartService.addToCart(productId, quantity, selectedSize);
+            await cartService.addToCart(productId, quantity, selectedSize, comboDeal);
             // Refresh from backend to get the updated cart with proper structure
             await get().syncCart();
           } catch (error) {
@@ -128,6 +174,11 @@ export const useCartStore = create(
               logout();
               // Show message to user (will be handled by component)
               throw { ...error, shouldShowLoginMessage: true };
+            }
+            if (error?.message?.toLowerCase().includes('stock')) {
+              // Backend says stock is insufficient; resync to revert optimistic update
+              await get().syncCart();
+              throw { success: false, message: error.message, code: 'OUT_OF_STOCK' };
             }
             console.error('Failed to add to cart on backend:', error);
             // Keep local changes on error - don't clear them
@@ -250,16 +301,73 @@ export const useCartStore = create(
       },
       
       getTotalPrice: () => {
-        return get().items.reduce((total, item) => {
-          // Ensure price is a number
+        const items = get().items;
+        
+        // Group items by combo deal
+        const comboDealGroups = {};
+        const regularItems = [];
+        
+        items.forEach(item => {
+          if (item.comboDeal && item.comboDeal.dealId) {
+            const dealId = String(item.comboDeal.dealId);
+            if (!comboDealGroups[dealId]) {
+              comboDealGroups[dealId] = {
+                dealId: dealId,
+                dealPrice: item.comboDeal.dealPrice,
+                requiredItems: item.comboDeal.requiredItems,
+                items: []
+              };
+            }
+            comboDealGroups[dealId].items.push(item);
+          } else {
+            regularItems.push(item);
+          }
+        });
+        
+        let total = 0;
+        
+        // Calculate combo deal totals
+        Object.values(comboDealGroups).forEach(group => {
+          // Count total distinct items in this combo deal group
+          const totalItemCount = group.items.length;
+          
+          // Check if we have the required number of distinct items for the deal
+          if (totalItemCount >= group.requiredItems) {
+            // Calculate how many complete combo deals we can form
+            const completeDeals = Math.floor(totalItemCount / group.requiredItems);
+            const remainingItems = totalItemCount % group.requiredItems;
+            
+            // Apply deal price for complete combo deals
+            total += completeDeals * (Number(group.dealPrice) || 0);
+            
+            // Calculate price for remaining items at regular price
+            if (remainingItems > 0) {
+              const remainingItemsList = group.items.slice(-remainingItems);
+              remainingItemsList.forEach(item => {
+                const price = Number(item.selectedPrice) || Number(item.price) || 699;
+                const quantity = Number(item.quantity) || 0;
+                total += price * quantity;
+              });
+            }
+          } else {
+            // Not enough distinct items for deal, use regular prices for all items
+            group.items.forEach(item => {
+              const price = Number(item.selectedPrice) || Number(item.price) || 699;
+              const quantity = Number(item.quantity) || 0;
+              total += price * quantity;
+            });
+          }
+        });
+        
+        // Calculate regular items totals
+        regularItems.forEach(item => {
           const price = Number(item.selectedPrice) || Number(item.price) || Number(item.product?.price) || 699;
-          // Ensure quantity is a number
           const quantity = Number(item.quantity) || 0;
-          // Calculate item total
           const itemTotal = price * quantity;
-          // Return sum, ensuring it's a valid number
-          return total + (isNaN(itemTotal) ? 0 : itemTotal);
-        }, 0);
+          total += isNaN(itemTotal) ? 0 : itemTotal;
+        });
+        
+        return total;
       },
       
       isInCart: (productId, size = null) => {

@@ -26,7 +26,7 @@ exports.getCart = async (req, res, next) => {
 // @access  Private
 exports.addToCart = async (req, res, next) => {
   try {
-    const { productId, quantity = 1, size = null } = req.body;
+    const { productId, quantity = 1, size = null, comboDeal } = req.body;
 
     const product = await Product.findById(productId);
     if (!product) {
@@ -73,13 +73,32 @@ exports.addToCart = async (req, res, next) => {
 
     if (existingItemIndex !== -1) {
       cart.items[existingItemIndex].quantity += quantity;
+      // Update combo deal info if provided
+      if (comboDeal) {
+        cart.items[existingItemIndex].comboDeal = {
+          dealId: comboDeal.dealId,
+          dealPrice: comboDeal.dealPrice,
+          requiredItems: comboDeal.requiredItems
+        };
+      }
     } else {
-      cart.items.push({
+      const newItem = {
         product: productId,
         quantity,
         size: size || (product.sizes?.[2]?.size || product.sizes?.[0]?.size || '100ml'),
         selectedPrice
-      });
+      };
+      
+      // Add combo deal info if provided
+      if (comboDeal) {
+        newItem.comboDeal = {
+          dealId: comboDeal.dealId,
+          dealPrice: comboDeal.dealPrice,
+          requiredItems: comboDeal.requiredItems
+        };
+      }
+      
+      cart.items.push(newItem);
     }
 
     await cart.save();

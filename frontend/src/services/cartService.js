@@ -27,13 +27,24 @@ const cartService = {
   },
 
   // Add to cart
-  addToCart: async (productId, quantity = 1, size = null) => {
+  addToCart: async (productId, quantity = 1, size = null, comboDeal = null) => {
     try {
-      const response = await api.post('/cart', {
+      const requestBody = {
         productId,
         quantity,
         size
-      });
+      };
+      
+      // Add combo deal info if provided
+      if (comboDeal) {
+        requestBody.comboDeal = {
+          dealId: comboDeal.dealId,
+          dealPrice: comboDeal.dealPrice,
+          requiredItems: comboDeal.requiredItems
+        };
+      }
+      
+      const response = await api.post('/cart', requestBody);
       return {
         success: true,
         data: response.data.data,

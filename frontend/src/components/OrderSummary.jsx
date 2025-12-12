@@ -307,11 +307,16 @@ const OrderSummary = () => {
               // Get item ID
               const itemId = item.id || item._id || item.product?._id || item.product?.id || item.product || `item-${index}`;
               // Ensure price is a number
-              const itemPrice = Number(item.selectedPrice) || Number(item.price) || Number(item.product?.price) || 699;
+              const itemPrice = Number(item.selectedPrice) || Number(item.price) || Number(item.product?.price) || 0;
               // Ensure quantity is a number
               const quantity = Number(item.quantity) || 1;
-              const itemTotal = isNaN(itemPrice * quantity) ? 0 : itemPrice * quantity;
+              const itemTotal = isNaN(itemPrice) || isNaN(quantity) ? 0 : itemPrice * quantity;
               const productImage = item.image || item.product?.image || item.product?.images?.[0] || heroimg;
+              
+              // Check if product is out of stock
+              const productStock = Number(item.product?.stock) || 0;
+              const isInStock = item.product?.inStock !== false && productStock > 0;
+              const isOutOfStock = !isInStock || productStock === 0;
               
               return (
                 <div
@@ -350,15 +355,27 @@ const OrderSummary = () => {
 
                       <div className="flex items-center justify-between mt-4">
                         <p className="text-sm text-gray-400">Unit Price</p>
-                        <p className="text-base md:text-lg font-bold text-[#D4AF37]">
-                          ₹{isNaN(itemPrice) ? '0' : itemPrice.toLocaleString()}
-                        </p>
+                        {isOutOfStock ? (
+                          <p className="text-base md:text-lg font-bold text-red-400">
+                            Out of Stock
+                          </p>
+                        ) : (
+                          <p className="text-base md:text-lg font-bold text-[#D4AF37]">
+                            ₹{itemPrice > 0 ? itemPrice.toLocaleString() : '0'}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
                         <p className="text-base md:text-lg font-bold text-white">Item Total</p>
-                        <p className="text-xl md:text-2xl font-bold text-[#D4AF37]">
-                          ₹{isNaN(itemTotal) ? '0' : itemTotal.toLocaleString()}
-                        </p>
+                        {isOutOfStock ? (
+                          <p className="text-xl md:text-2xl font-bold text-red-400">
+                            Out of Stock
+                          </p>
+                        ) : (
+                          <p className="text-xl md:text-2xl font-bold text-[#D4AF37]">
+                            ₹{itemTotal > 0 ? itemTotal.toLocaleString() : '0'}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

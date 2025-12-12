@@ -469,7 +469,7 @@ const Orders = () => {
 
               {/* Order Items */}
               <div className="space-y-3 mb-4">
-                {order.items?.slice(0, 2).map((item, index) => (
+                {order.items?.map((item, index) => (
                   <div key={index} className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-2 md:p-3">
                     <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden bg-gray-700">
                       <img
@@ -491,11 +491,6 @@ const Orders = () => {
                     </p>
                   </div>
                 ))}
-                {order.items?.length > 2 && (
-                  <p className="text-xs text-gray-400 text-center pt-2">
-                    +{order.items.length - 2} more item(s)
-                  </p>
-                )}
               </div>
 
               {/* Tracking Info */}

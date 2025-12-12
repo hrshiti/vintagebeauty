@@ -185,12 +185,32 @@ const ProductDetail = () => {
   const brandName = product.brandName || 'VINTAGE BEAUTY';
   const rating = product.rating || 0;
   const productId = product._id || product.id;
+  const stockValue = Number(product?.stock);
+  const isOutOfStock = product?.inStock === false || (Number.isFinite(stockValue) && stockValue <= 0);
 
   const handleQuantityChange = (delta) => {
-    setQuantity(prev => Math.max(1, prev + delta));
+    setQuantity(prev => {
+      const nextValue = Math.max(1, prev + delta);
+      if (Number.isFinite(stockValue)) {
+        return Math.min(nextValue, stockValue);
+      }
+      return nextValue;
+    });
   };
 
   const handleAddToCart = async () => {
+    if (isOutOfStock) {
+      setToastMessage('This item is out of stock');
+      setShowToast(true);
+      return;
+    }
+
+    if (Number.isFinite(stockValue) && quantity > stockValue) {
+      setToastMessage(`Only ${stockValue} left in stock`);
+      setShowToast(true);
+      return;
+    }
+
     const sizeValue = selectedSize || (product.sizes?.[2]?.size || product.sizes?.[0]?.size || '100ml');
     try {
       await addItem(product, quantity, sizeValue);
@@ -198,7 +218,7 @@ const ProductDetail = () => {
       setShowToast(true);
     } catch (err) {
       console.error(err);
-      setToastMessage('Failed to add to cart');
+      setToastMessage(err?.message || 'Failed to add to cart');
       setShowToast(true);
     }
   };
@@ -658,7 +678,8 @@ const ProductDetail = () => {
             <span className="text-white font-bold px-3 min-w-[30px] text-center">{quantity}</span>
             <button
               onClick={() => handleQuantityChange(1)}
-              className="text-white hover:text-[#D4AF37] transition-colors"
+              disabled={isOutOfStock || (Number.isFinite(stockValue) && quantity >= stockValue)}
+              className="text-white hover:text-[#D4AF37] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -668,12 +689,17 @@ const ProductDetail = () => {
 
           <button
             onClick={handleAddToCart}
-            className="flex-1 bg-[#D4AF37] hover:bg-[#F4D03F] text-black font-bold px-4 py-3 rounded-lg text-sm transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
+          disabled={isOutOfStock}
+          className={`flex-1 font-bold px-4 py-3 rounded-lg text-sm transition-all duration-300 shadow-lg flex items-center justify-center gap-2 ${
+            isOutOfStock
+              ? 'bg-gray-600 text-gray-200 cursor-not-allowed'
+              : 'bg-[#D4AF37] hover:bg-[#F4D03F] text-black'
+          }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>Add to cart</span>
+          <span>{isOutOfStock ? 'Out of stock' : 'Add to cart'}</span>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -696,7 +722,8 @@ const ProductDetail = () => {
             <span className="text-white font-bold px-4 min-w-[40px] text-center text-lg">{quantity}</span>
             <button
               onClick={() => handleQuantityChange(1)}
-              className="text-white hover:text-[#D4AF37] transition-colors"
+              disabled={isOutOfStock || (Number.isFinite(stockValue) && quantity >= stockValue)}
+              className="text-white hover:text-[#D4AF37] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -706,12 +733,17 @@ const ProductDetail = () => {
 
           <button
             onClick={handleAddToCart}
-            className="bg-[#D4AF37] hover:bg-[#F4D03F] text-black font-bold px-8 py-3 rounded-lg text-base transition-all duration-300 shadow-lg flex items-center justify-center gap-3 min-w-[200px]"
+          disabled={isOutOfStock}
+          className={`font-bold px-8 py-3 rounded-lg text-base transition-all duration-300 shadow-lg flex items-center justify-center gap-3 min-w-[200px] ${
+            isOutOfStock
+              ? 'bg-gray-600 text-gray-200 cursor-not-allowed'
+              : 'bg-[#D4AF37] hover:bg-[#F4D03F] text-black'
+          }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>Add to cart</span>
+          <span>{isOutOfStock ? 'Out of stock' : 'Add to cart'}</span>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>

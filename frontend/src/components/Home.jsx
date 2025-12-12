@@ -1095,6 +1095,8 @@ const Home = () => {
                   const productPrice = product.price || '₹699';
                   const productDescription = product.description || product.scentProfile || 'Premium product from Vintage Beauty';
                   const productImage = product.image || heroimg;
+                  const stockValue = Number(product?.stock);
+                  const isOutOfStock = product?.inStock === false || (Number.isFinite(stockValue) && stockValue <= 0);
                   
                   return (
                     <motion.div
@@ -1139,11 +1141,25 @@ const Home = () => {
                           <p className="text-xs text-gray-400 line-clamp-2 mb-2" title={productDescription}>
                             {productDescription}
                           </p>
+                          {isOutOfStock && (
+                            <p className="text-xs font-semibold text-red-400 mb-1">Out of Stock</p>
+                          )}
                           {/* Add to Cart Button */}
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              if (isOutOfStock) {
+                                toast.error('This item is out of stock', {
+                                  style: {
+                                    background: '#1F1F1F',
+                                    color: '#fff',
+                                    border: '1px solid #D4AF37',
+                                    borderRadius: '8px',
+                                  },
+                                });
+                                return;
+                              }
                               try {
                                 addItem(product, 1);
                                 toast.success(`${productName} added to cart!`, {
@@ -1159,12 +1175,18 @@ const Home = () => {
                                   },
                                 });
                               } catch (error) {
-                                toast.error('Failed to add to cart');
+                            const message = error?.message || 'Failed to add to cart';
+                            toast.error(message);
                               }
                             }}
-                            className="w-full mt-2 bg-[#D4AF37] hover:bg-[#F4D03F] text-black font-bold px-2 py-1.5 rounded-lg text-[10px] md:text-xs transition-all duration-300 shadow-md hover:shadow-lg"
+                            disabled={isOutOfStock}
+                            className={`w-full mt-2 font-bold px-2 py-1.5 rounded-lg text-[10px] md:text-xs transition-all duration-300 shadow-md ${
+                              isOutOfStock
+                                ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                                : 'bg-[#D4AF37] hover:bg-[#F4D03F] text-black hover:shadow-lg'
+                            }`}
                           >
-                            Add to Cart
+                            {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                           </button>
                         </div>
                       </Link>

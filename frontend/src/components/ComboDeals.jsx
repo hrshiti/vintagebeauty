@@ -16,6 +16,7 @@ const ComboDeals = () => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState({}); // Track which products have expanded details
   const cartItemCount = getItemCount();
 
@@ -101,6 +102,20 @@ const ComboDeals = () => {
   }, []);
 
   const handleAddToBox = (product) => {
+    const stockValue = Number(product?.stock);
+    const isOutOfStock = product?.inStock === false || (Number.isFinite(stockValue) && stockValue <= 0);
+
+    if (isOutOfStock) {
+      toast.error('This item is out of stock', {
+        style: {
+          background: '#1F1F1F',
+          color: '#fff',
+          border: '1px solid #D4AF37',
+        },
+      });
+      return;
+    }
+
     if (selectedItems.length >= requiredItems) {
       toast.error(`You can only select ${requiredItems} items for this deal`);
       return;
@@ -208,11 +223,42 @@ const ComboDeals = () => {
       return;
     }
     
+    const unavailableItem = selectedItems.find((item) => {
+      const stockValue = Number(item?.stock);
+      return item?.inStock === false || (Number.isFinite(stockValue) && stockValue <= 0);
+    });
+
+    if (unavailableItem) {
+      toast.error(`${unavailableItem.name || 'Item'} is out of stock`, {
+        style: {
+          background: '#1F1F1F',
+          color: '#fff',
+          border: '1px solid #D4AF37',
+        },
+      });
+      return;
+    }
+    
     try {
-      // Add all selected items to cart
-      for (const item of selectedItems) {
-        await addItem(item, 1, item.sizes?.[2]?.size || '100ml');
-      }
+      // Prepare combo deal info
+      const comboDealInfo = {
+        dealId: id,
+        dealPrice: dealPrice,
+        requiredItems: requiredItems
+      };
+      
+      // Add all selected items to cart with combo deal info
+      setIsAddingToCart(true);
+      const addPromises = selectedItems.map((item) => {
+        const sizeToUse = item.sizes?.[2]?.size || item.sizes?.[0]?.size || '100ml';
+        return addItem(
+          { ...item, comboDeal: comboDealInfo }, 
+          1, 
+          sizeToUse,
+          comboDealInfo
+        );
+      });
+      await Promise.all(addPromises);
       
       toast.success(`${selectedItems.length} items added to cart!`, {
         style: {
@@ -252,6 +298,8 @@ const ComboDeals = () => {
           },
         });
       }
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -391,7 +439,9 @@ const ComboDeals = () => {
             {availableProducts.map((product) => {
               const productId = product._id || product.id;
               const isSelected = selectedItems.some(item => (item._id || item.id) === productId);
-              const canSelect = selectedItems.length < requiredItems;
+              const stockValue = Number(product?.stock);
+              const isOutOfStock = product?.inStock === false || (Number.isFinite(stockValue) && stockValue <= 0);
+              const canSelect = !isOutOfStock && selectedItems.length < requiredItems;
             
             const isExpanded = expandedProducts[productId];
             const productDetails = getProductDetails(product);
@@ -454,9 +504,12 @@ const ComboDeals = () => {
                   )}
                   
                   {/* Price */}
-                  <p className="text-sm md:text-base font-bold text-[#D4AF37] mb-3 mt-auto">
+                  <p className="text-sm md:text-base font-bold text-[#D4AF37] mb-1 mt-auto">
                     {product.displayPrice}
                   </p>
+                  {isOutOfStock && (
+                    <p className="text-xs font-semibold text-red-400 mb-2">Out of Stock</p>
+                  )}
 
                   {/* Add to Box Button */}
                   {isSelected ? (
@@ -476,7 +529,7 @@ const ComboDeals = () => {
                           : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                       }`}
                     >
-                      ADD TO BOX
+                      {isOutOfStock ? 'Out of Stock' : 'ADD TO BOX'}
                     </button>
                   )}
                 </div>
@@ -526,9 +579,14 @@ const ComboDeals = () => {
               {selectedItems.length >= requiredItems && (
                 <button
                   onClick={handleProceedToCheckout}
-                  className="w-full md:w-auto px-6 md:px-8 py-2.5 md:py-3 bg-[#D4AF37] text-black rounded-lg font-semibold text-sm md:text-base hover:bg-[#F4D03F] transition-colors shadow-lg"
+                  disabled={isAddingToCart}
+                  className={`w-full md:w-auto px-6 md:px-8 py-2.5 md:py-3 rounded-lg font-semibold text-sm md:text-base transition-colors shadow-lg ${
+                    isAddingToCart
+                      ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                      : 'bg-[#D4AF37] text-black hover:bg-[#F4D03F]'
+                  }`}
                 >
-                  Proceed to Checkout
+                  {isAddingToCart ? 'Adding...' : 'Proceed to Checkout'}
                 </button>
               )}
             </div>

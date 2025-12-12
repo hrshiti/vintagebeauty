@@ -184,8 +184,16 @@ const Cart = () => {
         {/* Cart Items */}
         <div className="space-y-3 md:space-y-4 mb-6 md:mb-8">
           {items.map((item, index) => {
-            const itemPrice = item.selectedPrice || item.price || item.product?.price || 699;
-            const itemTotal = itemPrice * item.quantity;
+            // Safely get price with proper fallbacks
+            const itemPrice = Number(item.selectedPrice) || Number(item.price) || Number(item.product?.price) || 0;
+            const itemQuantity = Number(item.quantity) || 1;
+            const itemTotal = isNaN(itemPrice) || isNaN(itemQuantity) ? 0 : itemPrice * itemQuantity;
+            
+            // Check if product is out of stock
+            const productStock = Number(item.product?.stock) || 0;
+            const isInStock = item.product?.inStock !== false && productStock > 0;
+            const isOutOfStock = !isInStock || productStock === 0;
+            
             const itemId = item._id || `${item.product?._id || item.product?.id || item.product || item.id}-${item.size || 'default'}-${index}`;
             const productName = item.name || item.product?.name || 'Product';
             // Extract productId - handle both string ID and object
@@ -225,9 +233,15 @@ const Cart = () => {
                             Size: {item.size}
                           </p>
                         )}
-                        <p className="text-sm md:text-base font-bold text-[#D4AF37]">
-                          ₹{itemPrice.toLocaleString()}
-                        </p>
+                        {isOutOfStock ? (
+                          <p className="text-sm md:text-base font-bold text-red-400">
+                            Out of Stock
+                          </p>
+                        ) : (
+                          <p className="text-sm md:text-base font-bold text-[#D4AF37]">
+                            ₹{itemPrice > 0 ? itemPrice.toLocaleString() : '0'}
+                          </p>
+                        )}
                       </div>
 
                       {/* Remove Button */}
@@ -245,19 +259,21 @@ const Cart = () => {
                     <div className="flex items-center justify-between mt-3 md:mt-4">
                       <div className="flex items-center gap-2 md:gap-3 bg-gray-800 rounded-lg p-1">
                         <button
-                          onClick={() => updateQuantity(productId, item.quantity - 1, item.size)}
-                          className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors text-white"
+                          onClick={() => updateQuantity(productId, itemQuantity - 1, item.size)}
+                          className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isOutOfStock}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                           </svg>
                         </button>
                         <span className="w-8 md:w-10 text-center text-sm md:text-base font-bold text-white">
-                          {item.quantity}
+                          {itemQuantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(productId, item.quantity + 1, item.size)}
-                          className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors text-white"
+                          onClick={() => updateQuantity(productId, itemQuantity + 1, item.size)}
+                          className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isOutOfStock || (productStock > 0 && itemQuantity >= productStock)}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -267,9 +283,15 @@ const Cart = () => {
 
                       <div className="text-right">
                         <p className="text-xs text-gray-400">Total</p>
-                        <p className="text-base md:text-lg font-bold text-[#D4AF37]">
-                          ₹{itemTotal.toLocaleString()}
-                        </p>
+                        {isOutOfStock ? (
+                          <p className="text-base md:text-lg font-bold text-red-400">
+                            Out of Stock
+                          </p>
+                        ) : (
+                          <p className="text-base md:text-lg font-bold text-[#D4AF37]">
+                            ₹{itemTotal > 0 ? itemTotal.toLocaleString() : '0'}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -18,6 +18,18 @@ const cartItemSchema = new mongoose.Schema({
   selectedPrice: {
     type: Number,
     required: true
+  },
+  comboDeal: {
+    dealId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ComboDeal'
+    },
+    dealPrice: {
+      type: Number
+    },
+    requiredItems: {
+      type: Number
+    }
   }
 });
 

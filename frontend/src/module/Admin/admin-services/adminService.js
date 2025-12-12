@@ -1,5 +1,6 @@
 // Admin service - uses backend API only, no mock data fallbacks
 import adminApi from '../../../services/adminApi';
+import { mockSettings, mockAdminUser, mockSupportQueries } from './mockData';
 
 // Simulate API delay
 const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
