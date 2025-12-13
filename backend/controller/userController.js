@@ -73,7 +73,6 @@ exports.sendOTP = async (req, res, next) => {
     // Send OTP via SMSINDIAHUB
     try {
       await sendOTPSMS(phoneNum, otp);
-      console.log(`OTP sent successfully to ${phoneNum}`);
     } catch (smsError) {
       console.error('Failed to send SMS:', smsError.message);
       // Still save OTP in database, but return error to user

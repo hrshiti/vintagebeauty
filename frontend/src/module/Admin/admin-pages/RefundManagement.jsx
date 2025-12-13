@@ -70,12 +70,17 @@ const RefundManagement = () => {
       // Filter orders that have refund information OR cancellation requests
       // Include orders with:
       // 1. refundStatus !== 'none' (refunds)
-      // 2. cancellationStatus === 'requested' (pending cancellation requests that may need refunds)
+      // 2. cancellationStatus === 'requested' or 'approved' (pending cancellation requests that may need refunds)
+      // 3. cancellationReason exists (fallback to catch any cancellation requests even if status is missing)
       const refundRecords = orders
         .filter(order => {
           const hasRefund = order.refundStatus && order.refundStatus !== 'none';
-          const hasCancellationRequest = order.cancellationStatus === 'requested' || order.cancellationStatus === 'approved';
-          return hasRefund || hasCancellationRequest;
+          const cancellationStatus = (order.cancellationStatus || '').toLowerCase();
+          const hasCancellationRequest = cancellationStatus === 'requested' || cancellationStatus === 'approved';
+          // Fallback: if cancellationReason exists but status is missing/empty, include it
+          const hasCancellationReason = order.cancellationReason && order.cancellationReason.trim().length > 0;
+          const needsCancellationReview = hasCancellationReason && (cancellationStatus === '' || cancellationStatus === 'none');
+          return hasRefund || hasCancellationRequest || needsCancellationReview;
         })
         .map(order => {
           // Get user information from populated user field

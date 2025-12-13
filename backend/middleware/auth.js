@@ -15,16 +15,6 @@ exports.protect = async (req, res, next) => {
     token = req.cookies.token;
   }
 
-  // Log token extraction for debugging (only in development)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Auth middleware - Token extraction:', {
-      hasAuthHeader: !!req.headers.authorization,
-      authHeaderPrefix: req.headers.authorization?.substring(0, 20),
-      hasToken: !!token,
-      tokenLength: token ? token.length : 0,
-      url: req.originalUrl || req.url
-    });
-  }
 
   if (!token) {
     return res.status(401).json({
@@ -58,14 +48,6 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    // Log token verification for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Auth middleware - Token verified:', {
-        userId: decoded.id,
-        url: req.originalUrl || req.url,
-        method: req.method
-      });
-    }
 
     // Find user by ID (from User model, not Admin model)
     req.user = await User.findById(decoded.id);

@@ -129,7 +129,6 @@ exports.createAnnouncement = async (req, res, next) => {
         },
         createdAt: announcement.createdAt
       });
-      console.log(`Emitted new announcement notification: ${announcement._id}`);
     }
 
     res.status(201).json({

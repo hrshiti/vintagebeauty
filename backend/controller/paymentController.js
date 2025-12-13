@@ -316,8 +316,6 @@ exports.verifyCashfreePayment = async (req, res, next) => {
 
     // Get order details from Cashfree to verify payment status
     // This is the most reliable way to check payment status
-    console.log('Verifying Cashfree payment:', { orderId, paymentId });
-    
     const orderResponse = await axios.get(
       `${CASHFREE_BASE_URL}/orders/${orderId}`,
       {
@@ -331,7 +329,6 @@ exports.verifyCashfreePayment = async (req, res, next) => {
     );
     
     const orderData = orderResponse.data;
-    console.log('Cashfree order response:', JSON.stringify(orderData, null, 2));
     
     // Extract payment information from order response
     // Cashfree API v3 returns payment_status in the order object
@@ -348,7 +345,6 @@ exports.verifyCashfreePayment = async (req, res, next) => {
                        orderData.payments?.[0]?.payment_id || 
                        orderData.payments?.[0]?.paymentId ||
                        null;
-      console.log('Extracted payment ID from Cashfree order:', actualPaymentId);
     }
     
     // If payment_status is not directly available, check order_status

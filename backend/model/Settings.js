@@ -27,8 +27,8 @@ const settingsSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster lookups
-settingsSchema.index({ key: 1 });
+// Note: Index on 'key' is automatically created by 'unique: true' above
+// No need to manually define it again
 
 module.exports = mongoose.model('Settings', settingsSchema);
 

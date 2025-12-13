@@ -71,13 +71,6 @@ const sendOTPSMS = async (phoneNumber, otp) => {
     // Build the complete API URL
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
-    console.log('📱 Sending SMS via SMSINDIAHUB:', {
-      phone: normalizedPhone,
-      senderId: SENDER_ID,
-      messageLength: message.length,
-      baseUrl: baseUrl
-    });
-
     // Make GET request to SMSINDIAHUB API
     const response = await axios.get(apiUrl, {
       headers: {
@@ -86,9 +79,6 @@ const sendOTPSMS = async (phoneNumber, otp) => {
       },
       timeout: 15000 // 15 second timeout
     });
-
-    console.log('📱 SMSINDIAHUB Response Status:', response.status);
-    console.log('📱 SMSINDIAHUB Response Data:', response.data);
 
     // Parse response
     let responseData = response.data;

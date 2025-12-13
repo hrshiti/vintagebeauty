@@ -134,7 +134,6 @@ exports.createCoupon = async (req, res, next) => {
         },
         createdAt: coupon.createdAt || new Date().toISOString()
       });
-      console.log(`Emitted new coupon notification: ${coupon._id}`);
     }
 
     res.status(201).json({

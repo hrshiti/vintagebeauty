@@ -87,7 +87,6 @@ io.use(async (socket, next) => {
 
     // Store user ID in socket
     socket.userId = user._id.toString();
-    console.log(`Socket authenticated for user: ${socket.userId}`);
     next();
   } catch (error) {
     // If token is invalid, allow connection but without user ID
@@ -98,7 +97,6 @@ io.use(async (socket, next) => {
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
-  console.log('Client connected:', socket.id, socket.userId ? `(User: ${socket.userId})` : '(Unauthenticated)');
 
   // If user is authenticated, auto-join them to their order rooms
   if (socket.userId) {
@@ -110,13 +108,11 @@ io.on('connection', async (socket) => {
       userOrders.forEach(order => {
         const orderRoom = `order-${order._id}`;
         socket.join(orderRoom);
-        console.log(`User ${socket.userId} auto-joined order room: ${orderRoom}`);
       });
 
       // Also join user to their personal notification room
       const userRoom = `user-${socket.userId}`;
       socket.join(userRoom);
-      console.log(`User ${socket.userId} joined personal room: ${userRoom}`);
     } catch (error) {
       console.error('Error auto-joining user to order rooms:', error);
     }
@@ -126,7 +122,6 @@ io.on('connection', async (socket) => {
   socket.on('join-order-room', async (orderId) => {
     if (!socket.userId) {
       // Don't emit error for unauthenticated users, just silently fail
-      console.log(`Unauthenticated user tried to join order room: order-${orderId}`);
       return;
     }
 
@@ -135,19 +130,15 @@ io.on('connection', async (socket) => {
       const order = await Order.findById(orderId);
       if (!order) {
         // Order doesn't exist yet - this is normal during order creation
-        // Don't emit error, just log it
-        console.log(`Order ${orderId} not found when user ${socket.userId} tried to join`);
         return;
       }
 
       if (order.user.toString() !== socket.userId) {
-        // User doesn't own this order - don't emit error, just log it
-        console.log(`User ${socket.userId} not authorized to access order ${orderId}`);
+        // User doesn't own this order
         return;
       }
 
       socket.join(`order-${orderId}`);
-      console.log(`User ${socket.userId} joined order room: order-${orderId}`);
     } catch (error) {
       // Log error but don't emit to client to avoid UI errors
       console.error('Error joining order room:', error);
@@ -157,11 +148,10 @@ io.on('connection', async (socket) => {
   // Leave order room
   socket.on('leave-order-room', (orderId) => {
     socket.leave(`order-${orderId}`);
-    console.log(`Client ${socket.id} left order room: order-${orderId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    // Client disconnected
   });
 });
 
@@ -285,7 +275,7 @@ httpServer.listen(PORT, () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-  console.log(`Error: ${err.message}`);
+  console.error(`Error: ${err.message}`);
   // Close server & exit process
   httpServer.close(() => process.exit(1));
 });

@@ -24,10 +24,6 @@ exports.getPolicyByType = async (req, res, next) => {
   try {
     const { type } = req.params;
     
-    // Log for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('getPolicyByType called with type:', type);
-    }
     
     // Validate policy type
     const validTypes = ['privacy', 'terms', 'refund', 'about'];

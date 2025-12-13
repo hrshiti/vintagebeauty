@@ -30,15 +30,12 @@ exports.getProducts = async (req, res, next) => {
     if (category) {
       try {
         const categorySlug = category.toLowerCase();
-        console.log('🔍 Searching for category with slug:', categorySlug);
         
         // First, try to find category by slug (most common case)
         let categoryDoc = await Category.findOne({ 
           slug: categorySlug,
           isActive: true 
         });
-        
-        console.log('📋 Category found by slug:', categoryDoc ? { id: categoryDoc._id, name: categoryDoc.name, slug: categoryDoc.slug } : 'NOT FOUND');
         
         // If not found by slug, try to match by name (fallback for old data or direct name matching)
         if (!categoryDoc) {
@@ -47,20 +44,15 @@ exports.getProducts = async (req, res, next) => {
             .split('-')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
-          
-          console.log('🔍 Trying to find category by name:', categoryName);
           categoryDoc = await Category.findOne({ 
             name: { $regex: new RegExp(`^${categoryName}$`, 'i') },
             isActive: true 
           });
-          
-          console.log('📋 Category found by name:', categoryDoc ? { id: categoryDoc._id, name: categoryDoc.name, slug: categoryDoc.slug } : 'NOT FOUND');
         }
         
         if (categoryDoc) {
           // Use category ObjectId for filtering (works for ALL products - old and new)
           query.category = categoryDoc._id;
-          console.log('✅ Using category ObjectId filter:', categoryDoc._id);
         } else {
           // Fallback: Try to match by categoryName field in Product model
           // Convert slug to name format: 'room-spray' -> 'Room Spray'
@@ -69,7 +61,6 @@ exports.getProducts = async (req, res, next) => {
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
           query.categoryName = { $regex: new RegExp(`^${categoryName}$`, 'i') };
-          console.log('⚠️ Category not found, using categoryName fallback:', categoryName);
         }
       } catch (err) {
         console.error('❌ Error finding category:', err);
@@ -146,8 +137,6 @@ exports.getProducts = async (req, res, next) => {
 
     // Pagination
     const skip = (Number(page) - 1) * Number(limit);
-
-    console.log('🔎 Final query:', JSON.stringify(query, null, 2));
     
     const products = await Product.find(query)
       .populate('category', 'name slug')
@@ -155,27 +144,7 @@ exports.getProducts = async (req, res, next) => {
       .skip(skip)
       .limit(Number(limit));
 
-    console.log('📊 Products found:', products.length);
-    console.log('📊 Sample product categories:', products.slice(0, 3).map(p => ({
-      name: p.name,
-      categoryId: p.category?._id,
-      categoryName: p.category?.name,
-      productCategoryName: p.categoryName
-    })));
-
     const total = await Product.countDocuments(query);
-    console.log('📊 Total products matching query:', total);
-    
-    // Additional debugging: Check if category filter is working
-    if (req.query.category) {
-      const allCategories = await Category.find({ isActive: true });
-      console.log('📋 All active categories in DB:', allCategories.map(c => ({ name: c.name, slug: c.slug, id: c._id })));
-      
-      const productsWithoutCategory = await Product.countDocuments({ category: { $exists: false } });
-      const productsWithCategory = await Product.countDocuments({ category: { $exists: true } });
-      console.log('📊 Products without category field:', productsWithoutCategory);
-      console.log('📊 Products with category field:', productsWithCategory);
-    }
 
     res.status(200).json({
       success: true,

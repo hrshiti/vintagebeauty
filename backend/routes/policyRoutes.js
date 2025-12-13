@@ -14,10 +14,6 @@ const { protectAdmin } = require('../middleware/adminAuth');
 // Route order matters in Express - more specific routes first
 // This route must be defined before /:id to avoid route conflicts
 router.get('/type/:type', (req, res, next) => {
-  // Add logging for debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Route /type/:type matched, type:', req.params.type);
-  }
   getPolicyByType(req, res, next);
 });
 

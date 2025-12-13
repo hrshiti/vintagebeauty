@@ -324,8 +324,6 @@ exports.cancelOrder = async (req, res, next) => {
 
       io.to(orderRoom).emit('order-status-updated', notificationData);
       io.to(userRoom).emit('order-status-updated', notificationData);
-      
-      console.log(`Emitted cancellation request update for order ${order._id} to user ${order.user}`);
     }
 
     res.status(200).json({
@@ -444,8 +442,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       
       // Emit to user room (for the order owner - more reliable)
       io.to(userRoom).emit('order-status-updated', notificationData);
-      
-      console.log(`Emitted order status update for order ${order._id} to user ${order.user}: ${order.orderStatus}`);
     }
 
     res.status(200).json({
@@ -517,8 +513,6 @@ exports.handleCancellationRequest = async (req, res, next) => {
 
       io.to(orderRoom).emit('order-status-updated', notificationData);
       io.to(userRoom).emit('order-status-updated', notificationData);
-      
-      console.log(`Emitted cancellation ${action} update for order ${order._id} to user ${order.user}`);
     }
 
     res.status(200).json({
@@ -588,8 +582,6 @@ exports.processRefund = async (req, res, next) => {
 
       io.to(orderRoom).emit('order-status-updated', notificationData);
       io.to(userRoom).emit('order-status-updated', notificationData);
-      
-      console.log(`Emitted refund processed update for order ${order._id} to user ${order.user}`);
     }
 
     res.status(200).json({
