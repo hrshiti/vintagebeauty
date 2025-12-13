@@ -37,7 +37,7 @@ export const useCartStore = create(
                 
                 return {
                   _id: item._id,
-                  product: productId,
+                  product: product._id ? product : productId, // Keep full product object if available, otherwise use ID
                   name: item.name || product.name || 'Product',
                   image: item.image || product.images?.[0] || product.image || null,
                   quantity: item.quantity || 1,

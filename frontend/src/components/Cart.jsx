@@ -4,6 +4,7 @@ import { useCartStore } from '../store/cartStore';
 import BottomNavbar from './BottomNavbar';
 import logo from '../assets/logo vintage.png';
 import heroimg from '../assets/heroimg.png';
+import toast from 'react-hot-toast';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -47,6 +48,27 @@ const Cart = () => {
 
   const handlePlaceOrder = () => {
     navigate('/order-summary');
+  };
+
+  // Handle quantity increase with stock limit check
+  const handleIncreaseQuantity = (productId, currentQuantity, productStock, size) => {
+    // Check if stock limit is reached
+    if (productStock !== null && currentQuantity >= productStock) {
+      toast.error('Stock limit ended', {
+        duration: 3000,
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '500'
+        }
+      });
+      return;
+    }
+    // If stock is available, proceed with quantity update
+    updateQuantity(productId, currentQuantity + 1, size);
   };
 
   // Show loading state only on initial load
@@ -190,9 +212,9 @@ const Cart = () => {
             const itemTotal = isNaN(itemPrice) || isNaN(itemQuantity) ? 0 : itemPrice * itemQuantity;
             
             // Check if product is out of stock
-            const productStock = Number(item.product?.stock) || 0;
-            const isInStock = item.product?.inStock !== false && productStock > 0;
-            const isOutOfStock = !isInStock || productStock === 0;
+            // Only show "Out of Stock" when stock is exactly 0
+            const productStock = typeof item.product === 'object' ? Number(item.product?.stock) : null;
+            const isOutOfStock = productStock !== null && productStock === 0;
             
             const itemId = item._id || `${item.product?._id || item.product?.id || item.product || item.id}-${item.size || 'default'}-${index}`;
             const productName = item.name || item.product?.name || 'Product';
@@ -271,9 +293,9 @@ const Cart = () => {
                           {itemQuantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(productId, itemQuantity + 1, item.size)}
+                          onClick={() => handleIncreaseQuantity(productId, itemQuantity, productStock, item.size)}
                           className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={isOutOfStock || (productStock > 0 && itemQuantity >= productStock)}
+                          disabled={isOutOfStock || (productStock !== null && productStock > 0 && itemQuantity >= productStock)}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

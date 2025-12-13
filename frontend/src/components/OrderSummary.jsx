@@ -314,9 +314,9 @@ const OrderSummary = () => {
               const productImage = item.image || item.product?.image || item.product?.images?.[0] || heroimg;
               
               // Check if product is out of stock
-              const productStock = Number(item.product?.stock) || 0;
-              const isInStock = item.product?.inStock !== false && productStock > 0;
-              const isOutOfStock = !isInStock || productStock === 0;
+              // Only show "Out of Stock" when stock is exactly 0
+              const productStock = typeof item.product === 'object' ? Number(item.product?.stock) : null;
+              const isOutOfStock = productStock !== null && productStock === 0;
               
               return (
                 <div
