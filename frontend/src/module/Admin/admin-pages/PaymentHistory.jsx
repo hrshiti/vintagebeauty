@@ -15,7 +15,7 @@ import {
   Eye,
   RefreshCw
 } from 'lucide-react';
-import adminService from '../admin-services/adminService';
+import orderService from '../../../services/orderService';
 
 function toIST(dateString) {
   return new Date(dateString).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -61,8 +61,8 @@ const PaymentHistory = () => {
       setLoading(true);
       setError(null);
       
-      // Get payments from orders
-      const ordersResponse = await adminService.getOrders();
+      // Get payments from orders using real API
+      const ordersResponse = await orderService.getAllOrders();
       const orders = ordersResponse.data.orders || [];
       
       // Transform orders into payment records

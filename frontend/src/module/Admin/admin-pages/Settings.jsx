@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminService from '../../../services/adminService';
-import mockAdminService from '../admin-services/adminService';
+import settingsService from '../../../services/settingsService';
 import { Settings as SettingsIcon, RefreshCw, Save, User, Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 const Settings = () => {
@@ -35,13 +35,13 @@ const Settings = () => {
       setLoading(true);
       setError(null);
       
-      // Use mock service for settings (stored in localStorage)
-      const response = await mockAdminService.getSettings();
+      // Use real API service for settings
+      const response = await settingsService.getSettings();
       
       setSettings(response.data.settings || []);
     } catch (err) {
       console.error('Error fetching settings:', err);
-      setError('Failed to load settings');
+      setError(err.message || 'Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -96,18 +96,21 @@ const Settings = () => {
       setError(null);
       setSuccess("");
       
-      // Use mock service for settings (stored in localStorage)
-      await mockAdminService.updateSetting(setting.key, {
-        key: setting.key,
+      // Use real API service for settings
+      const response = await settingsService.updateSetting(setting.key, {
         value: setting.value,
-        description: setting.description
+        description: setting.description || '',
+        type: setting.type || 'string'
       });
       
-      setSuccess('Setting saved successfully');
+      setSuccess(response.data.message || 'Setting saved successfully');
       setTimeout(() => setSuccess(""), 3000);
+      
+      // Refresh settings to get updated data
+      await fetchSettings();
     } catch (err) {
       console.error('Error saving setting:', err);
-      setError('Failed to save setting');
+      setError(err.message || 'Failed to save setting');
       setTimeout(() => setError(null), 3000);
     } finally {
       setSaving(false);

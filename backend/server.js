@@ -243,6 +243,8 @@ app.get('/health/detailed', async (req, res) => {
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes')); // OTP auth routes
 app.use('/api/users', require('./routes/userRoutes'));
+// Settings route must come BEFORE /api/admin to avoid route conflict with /api/admin/:id
+app.use('/api/admin/settings', require('./routes/settingsRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));

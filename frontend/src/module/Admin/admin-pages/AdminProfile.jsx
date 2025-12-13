@@ -29,17 +29,18 @@ const AdminProfile = () => {
       setLoading(true);
       // Get admin user from API
       const response = await adminService.getMe();
-      if (response.valid && response.user) {
+      if (response.success && response.data) {
+        const adminData = response.data;
         setAdminUser({
-          username: response.user.username || response.user.name || 'admin',
-          email: response.user.email || 'admin@vintagebeauty.com',
-          role: response.user.role || 'admin',
-          lastLogin: response.user.lastLogin || new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          isActive: response.user.isActive !== undefined ? response.user.isActive : true
+          username: adminData.username || adminData.name || '',
+          email: adminData.email || '',
+          role: adminData.role || 'admin',
+          lastLogin: adminData.lastLogin || null,
+          isActive: adminData.isActive !== undefined ? adminData.isActive : true
         });
         setFormData({
-          username: response.user.username || response.user.name || 'admin',
-          email: response.user.email || 'admin@vintagebeauty.com',
+          username: adminData.username || adminData.name || '',
+          email: adminData.email || '',
           currentPassword: "",
           newPassword: "",
           confirmPassword: ""
@@ -49,22 +50,8 @@ const AdminProfile = () => {
       }
     } catch (err) {
       console.error('Error loading admin user:', err);
-      // Use default admin user info as fallback
-      const defaultUser = {
-        username: 'admin',
-        email: 'admin@vintagebeauty.com',
-        role: 'admin',
-        lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        isActive: true
-      };
-      setAdminUser(defaultUser);
-      setFormData({
-        username: defaultUser.username,
-        email: defaultUser.email,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      });
+      setError(err.message || 'Failed to load admin profile');
+      // Don't set default user - show error instead
     } finally {
       setLoading(false);
     }

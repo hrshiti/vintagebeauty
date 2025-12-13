@@ -14,7 +14,7 @@ import {
   TrendingDown,
   FileText
 } from 'lucide-react';
-import adminService from '../admin-services/adminService';
+import orderService from '../../../services/orderService';
 
 function toIST(dateString) {
   return new Date(dateString).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -63,8 +63,8 @@ const RefundManagement = () => {
       setLoading(true);
       setError(null);
       
-      // Get refunds from orders
-      const ordersResponse = await adminService.getOrders();
+      // Get refunds from orders using real API
+      const ordersResponse = await orderService.getAllOrders();
       const orders = ordersResponse.data.orders || [];
       
       // Filter orders that have refund information OR cancellation requests
@@ -290,7 +290,7 @@ const RefundManagement = () => {
       setError(null);
       setSuccess(null);
 
-      await adminService.processRefund(orderId);
+      await orderService.processRefund(orderId);
       setSuccess('Refund processed successfully!');
       await fetchRefundData();
       setTimeout(() => setSuccess(null), 3000);
