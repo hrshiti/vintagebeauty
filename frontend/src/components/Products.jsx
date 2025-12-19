@@ -10,6 +10,7 @@ import BottomNavbar from './BottomNavbar';
 import logo from '../assets/logo vintage.png';
 import heroimg from '../assets/heroimg.png';
 import { trackCategoryVisit, trackProductView } from '../utils/activityTracker';
+import categoryService from '../services/categoryService';
 
 const Products = () => {
   const navigate = useNavigate();
@@ -33,21 +34,35 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // State for categories from API
+  const [categoriesData, setCategoriesData] = useState([]);
   
-  // State for selected category - initialize from URL query params
-  const [selectedCategory, setSelectedCategory] = useState(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const category = searchParams.get('category');
-    if (category) {
-      // Convert category slug to display name
-      const categoryMap = {
+  // Function to convert slug to category name
+  const getCategoryNameFromSlug = (slug) => {
+    if (!categoriesData || categoriesData.length === 0) {
+      // Fallback to hardcoded mapping if categories not loaded yet
+      const fallbackMap = {
         'perfume': 'Perfume',
         'room-spray': 'Room Spray',
         'pocket-perfume': 'Pocket Perfume',
         'after-shave': 'After Shave',
         'gift-set': 'Gift Set'
       };
-      return categoryMap[category] || category;
+      return fallbackMap[slug] || slug;
+    }
+
+    // Find category by slug and return its name
+    const category = categoriesData.find(cat => cat.slug === slug);
+    return category?.name || slug;
+  };
+
+  // State for selected category - initialize from URL query params
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const category = searchParams.get('category');
+    if (category) {
+      return getCategoryNameFromSlug(category);
     }
     return null;
   });
@@ -106,6 +121,37 @@ const Products = () => {
 
     fetchProducts();
   }, []);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoryService.getCategories();
+        if (response.success && response.categories) {
+          setCategoriesData(response.categories);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setCategoriesData([]);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Update selectedCategory when categories load and there's a category in URL
+  useEffect(() => {
+    if (categoriesData.length > 0) {
+      const searchParams = new URLSearchParams(location.search);
+      const category = searchParams.get('category');
+      if (category && !selectedCategory) {
+        const categoryName = getCategoryNameFromSlug(category);
+        if (categoryName !== category) { // Only update if we found a match
+          setSelectedCategory(categoryName);
+        }
+      }
+    }
+  }, [categoriesData, location.search, selectedCategory]);
 
   // Track category visit when category is selected from URL
   useEffect(() => {
